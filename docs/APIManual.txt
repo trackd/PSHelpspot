@@ -1,0 +1,4298 @@
+Home <https://support.helpspot.com/index.php> → API Manual
+<https://support.helpspot.com/index.php?pg=kb.book&id=6> → *Printer Friendly Version*
+
+
+  API Manual
+
+Complete documentation on all of the HelpSpot API's.
+
+  * 1. Live Lookup <#c30>
+      o 1.1. Live Lookup Overview <#p174>
+      o 1.2. Live Lookup Configuration and Implementation <#p6>
+      o 1.3. Configuration for Global Address Book <#p331>
+      o 1.4. Sample Implimentation: Azure AD Live Lookup <#p663>
+      o 1.5. Sample Implementation: Active Directory via Linked SQL
+        Server <#p176>
+      o 1.6. Sample Implementation: 37Signals Highrise <#p194>
+      o 1.7. Sample Implimentation: Shopify <#p601>
+  * 2. Request Push API <#c27>
+      o 2.1. Request Push Overview <#p153>
+      o 2.2. Request Push Implementation Guide <#p156>
+      o 2.3. Sample Implementation: FogBugz <#p168>
+      o 2.4. Sample Implementation: 37 Signals Highrise <#p169>
+      o 2.5. Sample Implementation: 37 Signals Campfire <#p292>
+      o 2.6. Sample Implementation: ActiveCollab <#p324>
+  * 3. AJAX Selection Field <#c31>
+      o 3.1. AJAX Custom Field Overview <#p158>
+      o 3.2. AJAX Selection Field Implementation Guide <#p159>
+  * 4. Web Service API <#c28>
+      o 4.1. Web Service API Overview <#p161>
+      o 4.2. API Basics: URL, Methods, Return Formats, Authentication
+        <#p162>
+      o 4.3. API Error Codes <#p224>
+      o 4.4. Public Methods <#p163>
+      o 4.5. Private Methods <#p164>
+      o 4.6. API Implementations in PHP, Cocoa, Ruby, Python, Java <#p307>
+      o 4.7. Sample Implementation: NetVibes Widget <#p165>
+  * 5. Email Parser API <#c33>
+      o 5.1. Email Parser: Using Email as a Service <#p25>
+      o 5.2. Email Parser: Advanced Tags <#p30>
+  * 6. Webhooks <#c93>
+      o 6.1. Webhooks Overview <#p525>
+  * 7. Zapier Integration <#c96>
+      o 7.1. Getting Started With The HelpSpot - Zapier Integration <#p554>
+      o 7.2. Using HelpSpot Webhooks With Zapier <#p640>
+      o 7.3. Using Zapier to Create HelpSpot Tickets Directly from Slack
+        <#p670>
+  * Appendix <#c29>
+      o 1. API Field Definitions <#p157>
+
+
+  1. Live Lookup
+
+
+  1.1. Live Lookup Overview
+
+*Live lookup allows HelpSpot to communicate with an external database,
+CRM, or system storing customer information pertinent to the support
+staff. *
+
+The power of live lookup is it provides real-time access to data from
+external systems from within HelpSpot; ensuring accurate customer
+information and custom field data for reporting purposes.
+
+Sample uses include looking up/inserting: customer ID, contact
+information, contract status, selected HR data, passwords, or even IT
+asset profiles.
+
+
+    Basic Workflow
+
+Once enabled, use of live lookup follows this basic workflow.
+
+ 1. Staff click the Live Lookup tab found above the Customer Information
+    box on the request page.
+ 2. HelpSpot sends all available customer information and custom field
+    values to a script written by an Administrator (or other technical
+    resource).
+ 3. The script will look up the customer information and compare to what
+    is stored in the pre-defined system/database. (Examples: Active
+    Directory, SalesForce).
+ 4. Customer information is returned and HelpSpot displays the results
+    in an embedded window. If multiple matches are found, a list will be
+    returned to the User for selecting the correct one.
+ 5. With the correct customer selected, their information (and any
+    specified custom fields) can be inserted into HelpSpot.
+
+
+    Live Lookup in Action
+
+The following shows live lookup as it appears for staff on the request page.
+
+Subsequent pages in this chapter provide an in-depth look at
+configuration and implementation.
+
+
+  1.2. Live Lookup Configuration and Implementation
+
+As mentioned in the previous page, live lookup works by passing
+information currently available about a customer in a request to an
+external script you specify.
+
+This is done through either the command line or over http/https
+(recommended). Once HelpSpot sends all available information via HTTP or
+as arguments to the command line script, your script will then processes
+those arguments to find out additional details about the customer and
+returns a very simple XML document outlined below.
+
+
+    Steps to Set up
+
+ 1. Enable live lookup in admin->settings. Specify if the script is http
+    or command line and provide the full path.
+ 2. Once enabled, the Live Lookup tab will become active in the customer
+    information box. When this tab is clicked a live lookup request will
+    be made to the location you specified.
+ 3. The following attributes are passed to your script:
+      * customer_id
+      * first_name
+      * last_name
+      * email
+      * phone
+      * request
+      * sUserID
+      * xStatus
+      * xCategory
+      * xPersonAssignedTo
+      * Custom# (# is the ID of the custom field being passed)
+      * acting_person_xperson (staffer running the Live Lookup)
+      * acting_person_fusertype (staffer level 1-admin, 2-HD, 3-L2, 4-Guest)
+      * acting_person_fname
+      * acting_person_lname
+      * acting_person_email
+
+    /*Note*/: In command line mode, as of HelpSpot 5.3.0, they are
+    passed in as named parameters. For example:
+
+    |/livelookup.sh --customer_id=123456 --first_name=Bob
+    --last_name=Jones --email --phone.|
+
+    Prior to HelpSpot 5.3.0, command line live lookup used unnamed options.
+
+    When using live lookup in HTTP mode these are passed as shown. For
+    example, given the information in the image above, HelpSpot would
+    pass this HTTP GET string to your script:
+    *?customer_id=123456&first_name=Bob&last_name=Jones&email=&phone=*
+
+ 4. Your script will process the search parameters passed in and return
+    a result set. A result set containing only one <customer> element is
+    considered a direct match by HelpSpot and the data will be
+    displayed. If multiple <customer> elements are returned then a list
+    of possible matches will be shown to the staff member. They may then
+    click on each to view the details.
+
+Sample PHP Live Lookup scripts are available here:
+
+  * Active Directory and LDAP Live Lookup Example
+    <https://support.helpspot.com/helpdesk/index.php?pg=file&from=2&id=315>
+  * MySQL Live Lookup Example
+    <https://support.helpspot.com/helpdesk/index.php?pg=file&from=2&id=335>
+  * Microsoft SQL Server Live Lookup Example
+    <https://support.helpspot.com/helpdesk/index.php?pg=file&from=2&id=144> (For HelpSpot V1 + V2)
+  * Microsoft SQL Server Live Lookup Example
+    <https://support.helpspot.com/helpdesk/index.php?pg=file&from=2&id=169> (For HelpSpot V3)
+  * Comma Separated Live Lookup Example
+    <https://support.helpspot.com/helpdesk/index.php?pg=file&from=2&id=145>
+
+
+
+
+    XML Specification
+
+Below is a description and samples of the XML file *your script* should
+return when called from HelpSpot Live Lookup. For quick studies here's a
+simple example:
+
+<?xml version="1.0" encoding="utf-8"?>
+<livelookup version="1.0" columns="first_name,last_name">
+	<customer>
+		<!-- These are standard elements which can be inserted back into a request -->
+		<customer_id>12334</customer_id>
+		<first_name>Bob</first_name>
+		<last_name>Jones</last_name>
+		<email>bjones@sampleinc.com</email>
+		<phone>845-555-4278</phone>
+		<!-- These are custom elements which may be useful to the help desk staff member -->
+		<organization>Sample Inc</organization>
+		<password>The Password</password>
+	</customer>
+</livelookup>
+
+Here's a larger Sample File
+<https://support.helpspot.com/helpdesk/index.php?pg=file&from=2&id=3>
+
+*Root element: <livelookup>*
+
+This element must always be the root element of your document. It can
+contain these attributes:
+
+*Attribute* 	*Description* 	*Example*
+version 	A version string, currently 1.0 	version="1.0"
+columns 	This attribute tells HelpSpot which columns to display to your
+staff when more than one <customer> element is returned.
+columns="Organization,Contract_Date"
+
+*Sub element: <customer>*
+
+A live lookup result set may contain any number of <customer> sub
+elements. When none are returned HelpSpot will interpret this to mean no
+results were found for the search. One is a direct match and if more
+than one is found each customer element will be listed using the columns
+described above in the <livelookup> element.
+
+Each <customer> element must return the sub element <customer_id>. All
+other elements are optional, but if found they will be insertable into
+HelpSpots request fields.
+
+*Element* 	*Description* 	*Example*
+<customer_id> 	Required: should return a unique value for the customer
+<customer_id>12334</customer_id>
+<first_name> 	The customers first name 	<first_name>Bob</first_name>
+<last_name> 	The customers last name 	<last_name>Jones</last_name>
+<email> 	The customers email address 	<email>bjones@sampleinc.com</email>
+<phone> 	The customers phone number 	<phone>845-555-8765</phone>
+<Custom#> 	A custom field value where # is the Custom field ID from
+Admin->Organize->Custom Fields. 	<Custom1>New York City</Custom1>
+
+*User Defined Elements*
+
+In addition to the predefined elements listed above, user defined
+elements specific to your installation may be returned. These elements
+will be show in the results along with the predefined ones. For example,
+you may want to return the customers password so staff don't have to
+continue looking up the password in a seperate browser window. To do
+that you would simply return <password>The Password</password> along
+with the other elements in your <customer> tag. The examples below show
+this feature.
+
+Returning HTML
+
+You can return HTML in your Live Lookup results by using a standard
+cdata block such as:
+
+<admin_link>
+<![CDATA[
+<a href="http://admin.company.com">Company Admin</a>
+]]>
+</admin_link>
+
+This is very useful for passing back tables of information, links to
+other systems or to emphasize information such as turning an expired
+support contract into red text.
+
+Custom Field Example
+
+To pass information in which maps to a custom field you need to add your
+XML tags in a special format. The tags should be <Custom#> where # is
+the ID number of the custom field (shown on the custom field page within
+HelpSpot). This tag is case sensitive and will automatically show the
+correct name of the custom field when the field is displayed.
+
+<?xml version="1.0" encoding="utf-8"?>
+<livelookup version="1.0" columns="first_name,last_name">
+	<customer>
+		<customer_id>12334</customer_id>
+		<first_name>Bob</first_name>
+		<last_name>Jones</last_name>
+		<email>bjones@sampleinc.com</email>
+		<phone>845-555-4278</phone>
+		<organization>Sample Inc</organization>
+		<Custom1>New York</Custom1>
+		<Custom5>Building 743</Custom5>
+	</customer>
+</livelookup>
+
+*Example: Single Match*
+
+<?xml version="1.0" encoding="utf-8"?>
+<livelookup version="1.0" columns="first_name,last_name">
+	<customer>
+		<customer_id>12334</customer_id>
+		<first_name>Bob</first_name>
+		<last_name>Jones</last_name>
+		<email>bjones@sampleinc.com</email>
+		<phone>845-555-4278</phone>
+		<organization>Sample Inc</organization>
+		<password>The Password</password>
+	</customer>
+</livelookup>
+
+Results in:
+
+*Example: Multiple Matches*
+
+<?xml version="1.0" encoding="utf-8"?>
+<livelookup version="1.0" columns="first_name,last_name">
+	<customer>
+		<customer_id>12334</customer_id>
+		<first_name>Bob</first_name>
+		<last_name>Jones</last_name>
+		<email>bjones@sampleinc.com</email>
+		<phone>845-555-4278</phone>
+		<organization>Sample Inc</organization>
+		<password>The Password</password>
+	</customer>
+	<customer>
+		<customer_id>56757</customer_id>
+		<first_name>Tina</first_name>
+		<last_name>Smith</last_name>
+		<email>tsmith@sampleinc.com</email>
+		<phone>845-555-8932</phone>
+		<organization>Sample Inc</organization>
+		<password>abcdefg</password>
+	</customer>
+	<customer>
+		<customer_id>95544</customer_id>
+		<first_name>Tim</first_name>
+		<last_name>Myers</last_name>
+		<email>tmyers@sampleinc.com</email>
+		<phone>845-555-9812</phone>
+		<organization>Sample Inc</organization>
+		<password>thyekbg</password>
+	</customer>
+</livelookup>
+
+Results in:
+
+
+
+  1.3. Configuration for Global Address Book
+
+HelpSpot's address book is designed to optionally query Live Lookup
+results for address book contacts. In additional to HelpSpot's own
+address book storage, this functionality allows a truly global address
+book that can return contacts from nearly any source.
+
+Using Live Lookup as a global address book requires the same
+configuration as a standard Live Lookup, in fact it uses your existing
+Live Lookup search sources. The only difference is that the address book
+looks for some particular XML tags in the results and treats them special.
+
+The main 3 XML elements (first_name, last_name, email) are standard in
+most Live Lookup scripts so in most cases the address book can use
+existing Live Lookup results with no changes, however, the additional 3
+tags can be useful to make the results richer.
+
+
+    Live Lookup Address Book Tags
+
+*Element* 	*Description* 	*Example*
+<first_name> 	The customers first name 	<first_name>Bob</first_name>
+<last_name> 	The customers last name 	<last_name>Jones</last_name>
+<email> 	The customers email address 	<email>bjones@sampleinc.com</email>
+<title> 	This persons title 	<title>Division Manager</title>
+<description> 	A description of what the person does or why they should
+be contacted. 	<description>Overnight contact</description>
+<highlight> 	If the person should be listed at the top of the results
+<highlight>1</highlight>
+
+
+  1.4. Sample Implimentation: Azure AD Live Lookup
+
+Azure AD Live Lookup for HelpSpot is a command line application that
+allows for livelookups against Azure AD using the Microsoft Graph API.
+
+https://github.com/helpspot/AzureLiveLookup
+<https://github.com/helpspot/AzureLiveLookup>
+
+
+  1.5. Sample Implementation: Active Directory via Linked SQL Server
+
+This code and instructions were graciously contributed by Richard
+Edwards of DNN Stuff <http://www.dnnstuff.com/>.
+
+This implementation explains how to connect to Active Directory via a
+link through Microsoft SQL Server rather than directly via PHP's LDAP
+functions. Using this linked method has shown significant performance
+improvements when querying for Live Lookup results.
+
+
+    Configuration
+
+  * Create a linked server on MS SQL Server by issuing the following
+    command: sp_addlinkedserver 'ADSI', 'Active Directory Service
+    Interfaces', 'ADSDSOObject', 'adsdatasource'
+  * In SQL Enterprise Manager, go to Security, Linked Servers, ADSI and
+    right click, choose properties
+  * On Security tab, select the last option 'Be made with this security
+    context' and enter an account that has access to read Active
+    Directory, click OK.
+  * Put the live_lookup_ad_mssql_linkedserver.php file (downloadable
+    below) into your HelpSpot custom_code directory
+  * Edit the file and change the parameters for $myServer, $myUser,
+    $myPass to point to your MS SQL server. Also, edit line 61 (the AD
+    query) to use your domain. For example change DC=example,DC=com to
+    OU=my org unit,DC=mydomain,DC=net if you wanted to just search the
+    organizational unit 'my org unit' for the domain 'mydomain.net'. The
+    query on lines 60-62 determines the scope of the search.
+  * In HelpSpot under Admin->Settings change the Live Lookup URL to
+    point to this file
+
+
+  1.6. Sample Implementation: 37Signals Highrise
+
+This PHP script allows integration between HelpSpot and Highrise using
+HelpSpot's Live Lookup API. Using Live Lookup staff can view customer
+details stored in Highrise directly from the request screen. The script
+also serves as an example of how Live Lookup can be used with another
+web service API in only a few lines of code.
+
+
+    Requirements
+
+  * PHP 5+
+  * PHP Curl Module installed
+
+
+    Installation
+
+Download the file below and place on any web server in a location where
+HelpSpot can reach the file via HTTP. In HelpSpot set the location of
+the file in Admin->Settings->Live Lookup and integration is complete.
+
+
+  1.7. Sample Implimentation: Shopify
+
+
+  Download The Sample Script
+
+The sample Shopify Live Lookup integration can be downloaded here:
+https://github.com/helpspot/shopify-live-lookup
+<https://github.com/helpspot/shopify-live-lookup>﻿
+
+
+  Shopify Setup
+
+To set up the Shopify Live Lookup in HelpSpot you first need to obtain
+an API key and password for you Shopify Store. To do this:
+
+ 1. Login to your store's admin area
+ 2. Click on Apps
+ 3. Select "Manage Private Apps"
+ 4. Choose "Create Private App"
+ 5. Enter the needed settings giving the app read access to your store
+ 6. You will then be given the API key and password to use to
+    authenticate the live lookup integration
+
+
+  Livelookup setup
+
+ 1. Download the live lookup script and open shopify.php in an editor
+ 2. Specify a random string for the `$ll_key`. This adds basic security
+    to the script to prevent unauthorized access to your customer
+    information
+ 3. Enter you store URL, api key and password in the variables at the
+    top of the file:
+
+    //your store url without a trailing "/"
+            $store_url = "https://mystoreurl.myshopify.com";
+            //The api key and password are created when setting up the private app in the shopify settings
+            $api_key = "yourapikeyhere";
+            $api_pwd = "yourapipasswordhere";
+
+ 4. Save your changes to the custom_code folder in your HelpSpot
+    installation.
+ 5. In the HelpSpot web admin area go to Admin > Settings > Live Lookup
+ 6. Add a new Live Lookup specifying a name, via GET and then the URL
+    for your livelookup script. To build the URL we'll use the `$ll_key`
+    set earlier. Example: |
+
+    http://my.helpspot.url/custom_code/shopify.php?ll_key=qwerty123﻿
+
+    |
+
+
+Your Shopify Live Lookup will now allow you to lookup customer
+information. By default the search logic cascades through using the
+Customer ID, Email and finally the First and Last Name to find the
+customer. This search logic can be customized for your needs.
+
+The Shopify Live Lookup will display a number of customer information
+fields including links back to your shopify admin area. This can be all
+customized to your needs.
+
+
+  Example Results
+
+
+  2. Request Push API
+
+
+  2.1. Request Push Overview
+
+The Request Push API allows you to "push" a request out of HelpSpot into
+another system. Using this functionality you can tie HelpSpot to other
+business applications such as bug trackers, CRM tools, Intranets, and
+communication systems.
+
+The basics of the Request Push API are as follows. Once you've created a
+Request Push API file (outlined in the Implementation Guide
+<https://support.helpspot.com/index.php?pg=kb.page&id=156>) each request
+page will have a Request Push link in the options area. An optional
+comment can be added before selecting the receiving system and clicking
+the push button to initiate the process.
+
+Once initiated within HelpSpot, your code will pick-up the request
+information and perform the action(s) you defined. Normally this will be
+a call to another systems API, but it could be a database insert,
+sending an email, etc.
+
+You can optionally return to HelpSpot a unique ID. If a unique ID is
+provided HelpSpot will make available a link in the request where an
+update can be retrieved from the receiving system.
+
+
+
+Example: a request is pushed to a bug tracker. A link would be available
+inside the request page that allows staff to retrieve the status of this
+bug. Your code returns an HTML block formatted as you have defined to
+show the information you need displayed. The left column is information
+provided by HelpSpot, the right column is your returned HTML.
+
+
+
+Note: Since HelpSpot 2.6 a Request Push can also be initiated via an
+Automation Rule. This can be very useful in automating the pushing of
+requests into other systems.
+
+
+
+
+  2.2. Request Push Implementation Guide
+
+Implementing the Request Push API requires 4 steps.
+
+ 1. Copy the /custom_code/RequestPush-base.php file to a new name
+ 2. Rename class
+ 3. Write the code for the push method of the PHP class
+ 4. Write the code for the details method of the PHP class (optional)
+
+
+    Creating the Push File
+
+HelpSpot determines the available request push destinations by the files
+and names of the files in the /custom_code directory in HelpSpot. To
+create a new push destination you must first copy the
+/custom_code/RequestPush-base.php file to
+/custom_code/RequestPush-YOURNAME.php (where YOURNAME is the name of
+your destination). The name should only contain letters, numbers,
+underscores and dashes. No spaces.
+
+    *Valid file name:* RequestPush-Mantis.php
+
+    Invalid name: RequestPush-Mantis Bug Tracker.php
+
+
+    Rename the Class
+
+Once the new push file is created, open in a text editor. Near the top
+of the file you'll see a line that looks as follows:
+
+class RequestPush_base{
+
+You should rename the class and replace '/*base*/' with the name you
+used in the file. So from the above example our class should now look
+like this:
+
+class RequestPush_Mantis{
+
+Be sure capitalization, dashes and/or underscores are consistent.
+
+
+    Writing the Push Method
+
+The class has 2 methods. The first is the push method, this is the
+method that accepts the request information and processes it. Processing
+can be anything required by the system you're integrate with. Normally
+this will be an API call, a database insert, sending an email, or even a
+combination of actions.
+
+There's a few important items to cover before you can write your push code:
+
+
+      Request Data Format
+
+The request data is passed into the push method as an associative array.
+The array contains these keys:
+
+Array(
+    [xRequest] => 12400
+    [fOpenedVia] => 7
+    [xOpenedViaId] => 0
+    [xPersonOpenedBy] => 0
+    [xPersonAssignedTo] => 1
+    [fOpen] => 1
+    [xStatus] => 1
+    [fUrgent] => 1
+    [xCategory] => 4
+    [dtGMTOpened] => 1183214861
+    [dtGMTClosed] => 0
+    [iLastReplyBy] => 1
+    [iLastReadCount] => 21
+    [fTrash] => 0
+    [dtGMTTrashed] => 0
+    [sRequestPassword] => "hckzke"
+    [sTitle] => ""
+    [sUserId] => ""
+    [sFirstName] => "Bob"
+    [sLastName] => "Jones"
+    [sEmail] => "bobjones@gmail.com"
+    [sPhone] => ""
+    [sRequestHash] => 9582c31acbac5f8556df01f84817cf4c
+    [Custom##] => ""
+    [fullname] => "Bob Jones"
+    [staff_comment] => ""
+    [assigned_person_fname] => "Tom"
+    [assigned_person_lname] => "Landers"
+    [assigned_person_email] => "tlanders@company.com"
+    [acting_person_xperson] => 7
+    [acting_person_fusertype] => 1
+    [acting_person_fname] => "Tina"
+    [acting_person_lname] => "Jones"
+    [acting_person_email] => "tjones@company.com"
+    [request_history] => Array(
+            [236] => Array(
+                    [xRequestHistory] => 236
+                    [xRequest] => 12403
+                    [xPerson] => 1
+                    [dtGMTChange] => 1184021870
+                    [fPublic] => 0
+                    [fInitial] => 0
+                    [fNoteIsHTML] => 0
+                    [fMergedFromRequest] => 0
+                    [tLog] => ""
+                    [tNote] => "Request history note"
+                    [tEmailHeaders] => ""
+                    [file] => Array(
+                         [0] => Array(
+                             [sFileMimeType] => image/jpeg
+                             [sFilename] => icon.jpg
+                             [xDocumentId] => 59
+                             [public_url] => http://www.site.com/index.php?...
+                             [private_url] => http://www.site.com/admin.php?...
+                            )
+                      )
+                )
+        )
+)
+
+You can read about each field on the API field definition page
+<https://support.helpspot.com//helpdesk/index.php?pg=kb.page&id=157>.
+
+
+      Return Unique ID
+
+After you've pushed the request to your other system you may optionally
+return a unique ID. If you do return a unique ID, HelpSpot will retain
+this ID to allow staff to retrieve updates about this push. It's
+important that the ID be unique, it will be the only parameter passed to
+the "details" method of the Request Push class you're implementing.
+You'll need to use that ID to retrieve the update information.
+
+The returned ID may contain any characters and be up to 255 characters
+long. You return the ID by adding a return statement to the push method
+as shown below:
+
+function push($request){
+    /* Perform actions with request data here */
+
+    return "UNIQUE ID";
+}
+
+
+      Error Handling
+
+Error messaging in the classes $errorMsg property must be set to address
+situations when a push cannot be completed. If set, HelpSpot will detect
+this and display the error to the staff member attempting the push.
+Errors are not logged at this time.
+
+function push($request){
+    //Something has gone wrong
+    $this->errorMsg = "Couldn't connect to database";
+}
+
+
+    Writing the Details Method
+
+If you opt to return unique ID's in the push method, you should also
+implement the details method so those ID's return information about a push.
+
+The details method is passed only one argument, the unique ID of a
+previous Request Push. The details method should use that ID to query
+the system being pushed to and find out whatever information there is
+about the status of the pushed request. You can then format those
+details into HTML and return the HTML. Here's a short example:
+
+function details($id){
+    /* Go get details using ID here */
+
+    //Format details into HTML
+    $html = '<b>'.$status.'</b>';
+
+    return $html;
+}
+
+Note in this very simple example we're returning a status code in bold.
+You could do much more with this. For instance you could build out a
+full HTML table to display the details. Also note, you don't have to
+build the HTML within the details method. You can have an external
+script which builds the HTML. In the details method you simply call that
+script with the ID and return the completed HTML.
+
+
+  2.3. Sample Implementation: FogBugz
+
+This is a sample Request Push API file for the bug tracker FogBugz. This
+example is functional as is, but could also be expanded upon as needed
+for your particular installation. By adding this file to your HelpSpot
+installation you'll allow staff members in HelpSpot to push a request
+directly into FogBugz as well as check on the progress of that newly
+created case from within HelpSpot.
+
+
+    Screenshots:
+
+<https://support.helpspot.com//helpdesk/index.php?pg=file&from=2&id=32>
+
+
+    Requirements:
+
+  * FogBugz Version 6+
+  * FogBugz API version 3+
+  * PHP version 5.1.0+
+  * PHP CURL module installed
+
+
+    Installation Instructions
+
+ 1. Download the file below
+ 2. Open the file in a text editor and edit the following 3 variables:
+     1. $fb_url - The URL to your FogBugz installation
+     2. $fb_user_email - The email of the user who should be used to
+        login to the API
+     3. $fb_user_password - The password of the user who should be used
+        to login to the API
+ 3. Upload the file into HelpSpot's /custom_code folder
+
+That's it, you'll now be able to push any existing request from HelpSpot
+into FogBugz.
+
+
+  2.4. Sample Implementation: 37 Signals Highrise
+
+This is a sample Request Push API file for the CRM tool, Highrise
+<http://www.highrisehq.com/>. This example is functional as is, but
+could also be expanded upon as needed for your particular needs. By
+adding this file to your HelpSpot installation you'll allow staff
+members in HelpSpot to push a customer/person/contact directly into
+Highrise. The attached script will also check that you're not adding a
+person who already exists so that duplicates are not created.
+
+
+    Screenshots:
+
+
+    Requirements:
+
+  * PHP version 5.1.0+
+  * PHP CURL module installed
+
+
+    Installation Instructions
+
+ 1. Download the file below
+ 2. Open the file in a text editor and edit the following 2 variables:
+     1. $highrise_url - The URL to your Highrise installation
+     2. $api_token - An API token from your "my info" page
+ 3. Upload the file into HelpSpot's /custom_code folder
+
+That's it, you'll now be able to push any existing request from HelpSpot
+into Highrise.
+
+
+  2.5. Sample Implementation: 37 Signals Campfire
+
+This is a sample Request Push API file for the group chat tool, Campfire
+<http://www.campfirenow.com/>. This script by default logs the staff
+comment to a Campfire chat room, though it could be modified to include
+other information like the initial request note, status, category and so on.
+
+This script is particularly useful to use with Automation Rules. You can
+have an Automation Rule use this Request Push script as it's action, so
+each time a request meets a certain set of conditions post a note in
+your Campfire account.
+
+
+    Screenshots
+
+
+    Requirements:
+
+  * PHP version 5.2.1+ Preferred, Should work with any version though if
+    upload_tmp_dir is set.
+  * PHP CURL module installed
+
+
+    Installation Instructions
+
+ 1. Download the file below
+ 2. Open the file in a text editor and edit the following 4 variables:
+     1. $campfire_url - The full URL to your account. ex:
+        http://[account].campfirenow.com
+     2. $campfire_username - The Campfire user you want to log messages
+        as. (usually an email address)
+     3. $campfire_password - The users Campfire password
+     4. $campfire_roomid - The room ID we want to log to. You can find
+        this in the URL of the room when you enter it. ex: /room/182650
+        - 182650 is the ID
+ 3. Upload the file into HelpSpot's /custom_code folder
+
+That's it, you'll now be able to push any existing request from HelpSpot
+into Campfire.
+
+
+  2.6. Sample Implementation: ActiveCollab
+
+This is a sample Request Push API file for the project management tool
+ActiveCollab. This example is functional as is, but could also be
+expanded upon as needed for your particular installation. By adding this
+file to your HelpSpot installation you'll allow staff members in
+HelpSpot to push a request directly into ActiveCollab to create a new
+ticket.
+
+
+    Requirements:
+
+  * PHP version 5.1.0+
+  * PHP CURL module installed
+
+
+    Installation Instructions
+
+ 1. Download the file below
+ 2. Open the file in a text editor and edit the following 3 variables:
+     1. $acollab_projid - The project ID to add a ticket to
+     2. $acollab_token - Your API token
+     3. $acollab_url - ActiveCollab URL from the API token page
+ 3. Upload the file into HelpSpot's /custom_code folder
+
+That's it, you'll now be able to push any existing request from HelpSpot
+into ActiveCollab.
+
+
+
+
+  3. AJAX Selection Field
+
+
+  3.1. AJAX Custom Field Overview
+
+The AJAX Selection Field is a dynamic way to enter information into a
+request. The AJAX Selection Field is similar to a regular text custom
+field, however, its value may be set by a drop down list created
+dynamically (in real time) through the use of AJAX (a web scripting
+technology). This allows the drop down list to be custom to the specific
+customer or even that specific request. It also proves to be useful in
+situations where the values of a drop down list may change periodically
+as it eliminates the need to edit the custom field values in HelpSpot.
+
+When an AJAX Selection Field is used all the information about the
+request is passed to a script you write (outlined in the implementation
+guide
+<https://support.helpspot.com//helpdesk/index.php?pg=kb.page&id=159>).
+Your script can use that information to return drop down list items
+specific to that request.
+
+One sample use of this is to return a list of billing codes that are
+specific to a customer or category.
+
+Another feature of the AJAX Selection Field is that it can be used as a
+search box. Along with information on the request, your script is also
+sent the value of the AJAX Selection Field. So if you enter a search
+term in the text box and then click the AJAX Selection field button, the
+script can use that search term to produce the drop down list of results.
+
+
+  3.2. AJAX Selection Field Implementation Guide
+
+The first step in creating an AJAX Selection field is to create a script
+file on your web server. This script can be in any language, common
+selections are PHP, ASP, Perl, Python, or Ruby. An example file in PHP
+is linked at the bottom of this page.
+
+This script will be called via HTTP GET with the following query parameters:
+
+  * xStatus
+  * xPersonAssignedTo
+  * xCategory
+  * sUserId
+  * sPhone
+  * sLastName
+  * sFirstName
+  * sEmail
+  * Custom## (note all custom fields will be included)
+  * callingField
+
+Details on the meaning of these parameters can be found on the API field
+definition page
+<https://support.helpspot.com//helpdesk/index.php?pg=kb.page&id=157>.
+
+One field to note is "callingField". This parameter holds the value of
+the AJAX Selection Field who's button was pushed. This value can be
+useful if you want to use the AJAX Selection Field as a search box.
+
+Using the parameters sent to your script, you'll query your data source.
+Once you have the selection list you'd like to return you simply format
+it in the XML specified below and return that to the HTTP call.
+
+
+    AJAX Selection Field XML Specification
+
+The XML your script should return is very simple. An empty result set is
+below:
+
+<ajaxfield>
+	<option>
+		<value></value>
+		<description></description>
+	</option>
+</ajaxfield>
+
+For each selection item you should have a pair of option tags. Each
+option tag has within it a set of value and description tags. The value
+holds the value which should be entered into the field when the option
+is selected. The description is the text shown to the staff member in
+the drop down select list. An example of the XML and the select list is
+produces is below:
+
+<ajaxfield>
+	<option>
+		<value>#4878</value>
+		<description>Support</description>
+		</option>	<option>
+		<value>#9978</value>
+		<description>Emergency Support</description>
+	</option>
+	<option>
+		<value>#9775</value>
+		<description>Custom Development</description>
+		</option>	<option>
+		<value>#2111</value>
+		<description>Training</description>
+	</option>
+</ajaxfield>
+
+This XML results in:
+
+
+
+
+  4. Web Service API
+
+
+  4.1. Web Service API Overview
+
+The HelpSpot web services API is designed to allow you to integrate
+HelpSpot with other applications. These may be desktop or web based,
+back office or for the public.
+
+
+    API Design
+
+The HelpSpot API is an HTTP based API, meaning that all interactions
+take place over standard HTTP. For example, GET requests are used to
+retrieve information and POST requests to submit information.
+
+The API supports 3 different types of return values: XML, JSON, or PHP.
+Depending on what client application you're accessing the API from one
+return format may be easier to use than another. For instance, if you're
+accessing the API from a javascript library using JSON will be easiest
+as JSON is javascript. For a desktop client using the API, XML is likely
+best since that will be the easiest to parse and display. The default
+return type is XML.
+
+
+    Public/Private Interfaces
+
+The foundation of the API is the distinction between the public and
+private interfaces. The public API works just like the HelpSpot portal
+in that it requires no authentication to use. The private interface is
+designed for applications that need to access the system as a staff
+member and require authentication.
+
+
+    Public Interface
+
+To use the public API you must first enable it in Admin->Settings->Web
+Services API. Once enabled any application that implements the API can
+submit API requests to that installation. A few simple example uses of
+the public API follow:
+
+  * Add built in request submission and tracking to an application your
+    company builds, removing the need for customers to leave the
+    application to request support.
+  * Allow web forms on different sites to all submit to the same
+    HelpSpot installation.
+  * Allow automated logging of server/hardware errors to HelpSpot as
+    requests.
+  * Pull knowledge book information into an intranet or application
+  * Log maintenance issues to the public forum
+
+
+    Private Interface
+
+To use the private API you must first enable it in Admin->Settings->Web
+Services API. Once enabled any clients which implement the private API
+can submit API requests to that installation. A few example uses of the
+private API follow:
+
+  * Integrate a users filters into their intranet homepage.
+  * Display a users filters in a custom desktop applicaiton.
+  * Submit requests with full control over categories, custom fields and
+    assignment from any external application.
+  * Integrate HelpSpot with other server systems staff use and allow
+    cross request generation and filter display.
+  * Create a custom notification system
+
+
+  4.2. API Basics: URL, Methods, Return Formats, Authentication
+
+
+    How to Enable the API
+
+By default both the public and private API's are disabled. You must
+enable them to use them in Admin->Settings->Web Services API
+
+
+    API URL
+
+The API is accessed from the URL: /http://www.domain.com*/api/index.php*/.
+
+Specific methods are accessed by using the "method" query string
+parameter. Example:
+
+/http://www.domain.com/api/index.php?*method=request.get*/
+
+
+    Public vs Private
+
+The HelpSpot API contains both public and private methods. Private
+methods require authentication, public do not. Private methods are those
+that start with "private". For example: private.filter.get
+
+
+    Return Format
+
+3 return types are currently supported:
+
+  * XML *(this is the default)*
+  * JSON
+  * Serialized PHP
+
+You can specify the return type you wish to receive back from the API by
+adding the "output" query string parameter to your API URL. If you want
+to receive XML then you do not need to specify the output as that is the
+default. Example:
+
+//api/index.php?method=request.get*&output=json*/
+
+The "output" parameter will accept xml, json, or php as valid values.
+
+
+    Private API Authentication
+
+
+      API Authentication Tokens
+
+API Tokens allow requests to be authenticated to the Private API without
+using a user's credentials. API keys are generated in the staff
+preferences area of HelpSpot user's profile. The API key generated by a
+given staff member will have the same rights and roles as the user who
+generated the API key.
+
+To use an API key after it is generated the API key needs to be passed
+in an "Authorization" header with the value of "Bearer" + the API key.
+Here is a CURL example:
+
+curl "http://mydomain.com/api/index.php?method=private.request.get&xRequest=13209" \     -H 'Authorization: Bearer 1|5VdNXJEtsPoFpX1KH5yc0BO2wlCqDp0sRTxZtox3'
+
+
+      Basic Authentication
+
+Private API need a staff member's email address (or username if using
+Black Box / LDAP auth) and password. There are 2 ways to pass this
+information to the API. /Note that basic authentication to the API is
+disabled if SAML2 auth is used./
+
+*1. HTTP Basic Authentication*
+You may pass in the username and password via HTTP basic authentication.
+Libraries such as cURL generally support this.
+
+*2. URL Parameters*
+The information may be passed directly in the URL as parameters. /This
+is not are recommended way of authenticating as your credentials will
+appear in the URL and may be logged etc./
+
+Example:
+
+//api/index.php?method=request.get*&username=tim@domain.com&password=abc123*/
+
+
+    Version Information
+
+You may always retrieve the current and minimum versions of the API by
+calling the "version" method. Example:
+
+//api/index.php?*method=version*/
+
+/api/index.php?method=private.version (note this requires authentication
+as all private methods do)
+
+This method will return:
+
+  * *version* - The current version of the API the installation is using.
+  * *min_version* - The minimum version of the API a client application
+    must support in order to operate correctly with the server
+    installation. For instance, if the server API is currently 3.0 with
+    a minimum version of 2.0 then a client written to use the 1.0 API
+    would not function properly. Clients should check this value before
+    using the API.
+
+
+    Errors
+
+If an error occurs instead of the methods XML an error XML data will be
+returned instead. The data is in this format:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<errors>
+	<error>
+		<id>2</id>
+		<description>User authentication failed</description>
+	</error>
+</errors>
+
+More than one error tag may occur in the root errors tag.
+
+If the API type being accessed (public or private) is not enabled in
+Admin->Settings an error in the following format will be returned.
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<reply>Private API not enabled</reply>
+
+Errors always return a "400 Bad Request" HTTP header as well.
+
+
+    The Easiest Way to Try the API
+
+The easiest way to start is by using curl or even FireFox to try some of
+the public API calls. Make sure the public API is enabled, then try
+these URL's:
+
+  * Get the version:
+    //api/index.php?method=version/
+  * List the public knowledge books:
+    //api/index.php?method=kb.list/
+  * Get an existing request in the system:
+    //api/index.php?method=request.get&accesskey=####(use the access key
+    for the request)/
+
+
+  4.3. API Error Codes
+
+This page lists the error codes that may be returned by the HelpSpot Web
+Service API. Details on the XML format of errors is available on the API
+Basics
+<https://support.helpspot.com//helpdesk/index.php?pg=kb.page&id=162> page.
+
+ID 	Error Message
+001 	Authentication information not sent
+002 	User authentication failed
+003 	Too many failed login attempts. Please wait a minute and try again
+101 	Required parameter ### not supplied (custom field parameters are
+considered required if they are included in an API call)
+102 	Valid access key required
+103 	Valid request ID required
+104 	Email or password not valid
+105 	Valid email required
+201 	Invalid method provided
+202 	Could not create topic
+203 	Forum is closed
+204 	Could not create post
+205 	Topic ID does not exist
+206 	Could not create request
+207 	Could not create request: ###
+208 	Request has been merged
+209 	Time event could not be added
+210 	Request could not be updated
+211 	Password could not be updated
+212 	Could not update request: ###
+213 	Could not merge requests
+301 	Trial expired
+302 	Maintenance mode enabled
+303 	private.customer.getPasswordByEmail has been removed as passwords
+are no longer stored in a way that are accessible by the system
+
+If the API type being accessed (public/private) is not enabled in
+Admin->Settings the following errors will be returned.
+
+Type 	Message
+Public
+
+Public API not enabled
+
+Private
+
+Private API not enabled
+
+
+
+
+  4.4. Public Methods
+
+/Be sure you've read the API Basics
+<https://support.helpspot.com//helpdesk/index.php?pg=kb.page&id=162>
+before working with the public API. /
+
+/You can find what each field/parameter is on the API Field Definitions
+<https://support.helpspot.com//helpdesk/index.php?pg=kb.page&id=157> page. /
+
+
+    Methods:
+
+  * customer.getRequests <#customer.getRequests>
+  * request.create <#request.create>
+  * request.update <#request.update>
+  * request.getCategories <#request.getCategories>
+  * request.getCustomFields <#request.getCustomFields>
+  * request.get <#request.get>
+  * forums.list <#forums.list>
+  * forums.get <#forums.get>
+  * forums.getTopics <#forums.getTopics>
+  * forums.getPosts <#forums.getPosts>
+  * forums.createTopic <#forums.createTopic>
+  * forums.createPost <#forums.createPost>
+  * forums.search <#forums.search>
+  * kb.list <#kb.list>
+  * kb.get <#kb.get>
+  * kb.getBookTOC <#kb.getBookTOC>
+  * kb.getPage <#kb.getPage>
+  * kb.search <#kb.search>
+  * kb.voteHelpful <#kb.voteHelpful>
+  * kb.voteNotHelpful <#kb.voteNotHelpful>
+  * util.getFieldLabels <#util.getFieldLabels>
+
+
+    customer.getRequests
+
+Return all requests for a customer.
+/Available as of HelpSpot version: 2.4.2/
+URL: 	/api/index.php?method=customer.getRequests
+HTTP Action: 	*GET*
+Parameters:
+
+  * sEmail - *Required*
+  * sPassword - *Required*
+
+Other notes: 	Note that this method follows the settings used on the
+portal, so if Black Box Authentication for the portal login is in use
+that type of username should be in the sEmail field.
+Other notes: 	The results are also based on the setting for
+Admin->Settings->Portal->Show Request History Based On. This determines
+if matches are based on email address or customer ID. Email address is
+the default.
+Simple Example:
+
+curl "http://.../api/index.php?method=customer.getRequests&sEmail=tsmith@companyco.com&sPassword=nusoxdln"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<requests>
+    <request>
+        <xRequest>12489</xRequest>
+        <fOpenedVia>2</fOpenedVia>
+        <xOpenedViaId>0</xOpenedViaId>
+        <fOpen>1</fOpen>
+        <xStatus>1</xStatus>
+        <fUrgent>0</fUrgent>
+        <xCategory>2</xCategory>
+        <dtGMTOpened>1212776831</dtGMTOpened>
+        <sRequestPassword>jiicxp</sRequestPassword>
+        <sTitle>RE: Information on Your Request</sTitle>
+        <sUserId />
+        <sFirstName>Tim</sFirstName>
+        <sLastName>Smith</sLastName>
+        <sEmail>tsmith@companyco.com</sEmail>
+        <sPhone />
+        <sCategory>Account Inquiries</sCategory>
+        <sStatus>Active</sStatus>
+        <tNote>I am looking for information on my account.</tNote>
+        <fullname>Tim Smith</fullname>
+        <accesskey>12489jiicxp</accesskey>
+    </request>
+</requests>
+
+
+    request.create
+
+Create a new request. Acts exactly as the portal web form.
+URL: 	/api/index.php?method=request.create
+HTTP Action: 	*POST*
+Parameters:
+
+  * tNote - *Required*
+  * xCategory
+  * sFirstName
+  * sLastName
+  * sUserId
+  * sEmail
+  * sPhone
+  * fUrgent
+  * xPortal
+  * File*#*_sFilename (# is the file number starting at 1)
+  * File*#*_sFileMimeType
+  * File*#*_bFileBody
+  * Custom*#* (# is the custom field ID)
+
+Other notes: 	In addition to tNote you must also have at least one of
+the following set: sFirstName,sLastName,sUserId,sEmail,sPhone.
+Other notes: 	Custom field rules for selected category apply.
+Simple Example:
+
+curl -F"tNote=This is the request." -F"sUserId=12345" http://.../api/index.php?method=request.create
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<request>
+        <xRequest>12744</xRequest>
+        <accesskey>12744uaxith</accesskey>
+</request>
+
+
+    request.update
+
+Update an existing request. The only option is to add a note, just as in
+the web portal.
+URL: 	/api/index.php?method=request.update
+HTTP Action: 	*POST*
+Parameters:
+
+  * accesskey - *Required*
+  * tNote - *Required*
+  * File*#*_sFilename (# is the file number starting at 1)
+  * File*#*_sFileMimeType
+  * File*#*_bFileBody
+
+Simple Example:
+
+curl -F"accesskey=12345abcxyz" -F"tNote=Update the request." http://.../api/index.php?method=request.update
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<request>
+        <xRequest>12745</xRequest>
+</request>
+
+
+    request.getCategories
+
+Returns a list of all the public categories
+URL: 	/api/index.php?method=request.getCategories
+HTTP Action: 	*GET*
+Parameters: 	none
+Simple Example:
+
+curl http://.../api/index.php?method=request.getCategories
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<categories>
+        <category>
+                <xCategory>3</xCategory>
+                <sCategory>Usage Question</sCategory>
+                <sCustomFieldList>
+                        <xCustomField>7</xCustomField>
+                        <xCustomField>5</xCustomField>
+                        <xCustomField>11</xCustomField>
+                        <xCustomField>9</xCustomField>
+                        <xCustomField>2</xCustomField>
+                </sCustomFieldList>
+        </category>
+        <category>
+                <xCategory>1</xCategory>
+                <sCategory>Report a Bug</sCategory>
+                <sCustomFieldList>
+                        <xCustomField>2</xCustomField>
+                </sCustomFieldList>
+        </category>
+</categories>
+
+
+    request.getCustomFields
+
+Returns a list of all the public custom fields
+URL: 	/api/index.php?method=request.getCustomFields
+HTTP Action: 	*GET*
+Parameters: 	none
+Simple Example:
+
+curl http://.../api/index.php?method=request.getCustomFields
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<customfields>
+        <field>
+                <xCustomField>6</xCustomField>
+                <fieldName>Office</fieldName>
+                <isRequired>0</isRequired>
+                <fieldType>text</fieldType>
+                <iOrder>0</iOrder>
+                <sTxtSize>30</sTxtSize>
+                <lrgTextRows />
+                <listItems />
+                <iDecimalPlaces>0</iDecimalPlaces>
+                <sRegex />
+                <isAlwaysVisible>1</isAlwaysVisible>
+        </field>
+        <field>
+                <xCustomField>2</xCustomField>
+                <fieldName>Database</fieldName>
+                <isRequired>0</isRequired>
+                <fieldType>select</fieldType>
+                <iOrder>0</iOrder>
+                <sTxtSize />
+                <lrgTextRows />
+                <listItems>
+                        <item>MySQL</item>
+                        <item>MS SQL Server</item>
+                        <item>PostgreSQL</item>
+                </listItems>
+                <iDecimalPlaces>0</iDecimalPlaces>
+                <sRegex />
+                <isAlwaysVisible>0</isAlwaysVisible>
+        </field>
+</customfields>
+
+
+    request.get
+
+Return all public information on a request.
+URL: 	/api/index.php?method=request.get
+HTTP Action: 	*GET*
+Parameters:
+
+  * accesskey - *Required*
+
+Simple Example:
+
+curl "http://.../api/index.php?method=request.get&accesskey=12345abcxyz"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<request>
+        <xRequest>12745</xRequest>
+        <fOpenedVia>Web Service</fOpenedVia>
+        <xOpenedViaId>0</xOpenedViaId>
+        <xPersonOpenedBy />
+        <xPersonAssignedTo>Ian Landsman</xPersonAssignedTo>
+        <fOpen>1</fOpen>
+        <xStatus>Active</xStatus>
+        <fUrgent>0</fUrgent>
+        <xCategory>Bugs</xCategory>
+        <dtGMTOpened>September 24, 2007</dtGMTOpened>
+        <dtGMTClosed />
+        <sRequestPassword>itetxb</sRequestPassword>
+        <sTitle />
+        <sUserId>12345</sUserId>
+        <sFirstName />
+        <sLastName />
+        <sEmail />
+        <sPhone />
+        <iLastReplyBy>Ian Landsman</iLastReplyBy>
+        <fTrash>0</fTrash>
+        <dtGMTTrashed />
+        <fullname> </fullname>
+        <reportingTags>
+            <tag>
+                <xReportingTag>2</xReportingTag>
+                <sReportingTag>Printer</sReportingTag>
+            </tag>
+            <tag>
+                <xReportingTag>3</xReportingTag>
+                <sReportingTag>Software</sReportingTag>
+            </tag>
+        </reportingTags>
+        <request_history>
+                <item>
+                        <xRequestHistory>1378</xRequestHistory>
+                        <xRequest>12745</xRequest>
+                        <xPerson>Ian Landsman</xPerson>
+                        <dtGMTChange>Tue, September 25, 2007, 11:00 AM</dtGMTChange>
+                        <fPublic>1</fPublic>
+                        <fInitial>0</fInitial>
+                        <tLog />
+                        <tNote><p>An HTML note example</p></tNote>
+                        <tEmailHeaders />
+                        <fNoteIsHTML>1</fNoteIsHTML>
+                        <fMergedFromRequest>0</fMergedFromRequest>
+                        <files>
+                                <file>
+                                        <sFileMimeType>application/pdf</sFileMimeType>
+                                        <sFilename>Invoice.pdf</sFilename>
+                                        <xDocumentId>60</xDocumentId>
+                                        <public_url>http://www.domain.com/index.php?pg=file&from=3&id=60&reqid=12745&reqhisid=1378</public_url>
+                                        <private_url>http://www.domain.com/admin.php?pg=file&from=0&id=60&showfullsize=1&download=1</private_url>
+                                </file>
+                        </files>
+                </item>
+                <item>
+                        <xRequestHistory>1377</xRequestHistory>
+                        <xRequest>12745</xRequest>
+                        <xPerson>Ian Landsman</xPerson>
+                        <dtGMTChange>Tue, September 25, 2007, 11:00 AM</dtGMTChange>
+                        <fPublic>0</fPublic>
+                        <fInitial>0</fInitial>
+                        <tLog>Category changed from "" to "Bugs"</tLog>
+                        <tNote />
+                        <tEmailHeaders />
+                        <fNoteIsHTML>0</fNoteIsHTML>
+                        <fMergedFromRequest>0</fMergedFromRequest>
+                </item>
+                <item>
+                        <xRequestHistory>1376</xRequestHistory>
+                        <xRequest>12745</xRequest>
+                        <xPerson> </xPerson>
+                        <dtGMTChange>Mon, September 24, 2007, 08:03 PM</dtGMTChange>
+                        <fPublic>1</fPublic>
+                        <fInitial>0</fInitial>
+                        <tLog />
+                        <tNote>Plain text update to the request.</tNote>
+                        <tEmailHeaders />
+                        <fNoteIsHTML>0</fNoteIsHTML>
+                        <fMergedFromRequest>0</fMergedFromRequest>
+                        <files />
+                </item>
+                <item>
+                        <xRequestHistory>1375</xRequestHistory>
+                        <xRequest>12745</xRequest>
+                        <xPerson> </xPerson>
+                        <dtGMTChange>Mon, September 24, 2007, 07:44 PM</dtGMTChange>
+                        <fPublic>1</fPublic>
+                        <fInitial>1</fInitial>
+                        <tLog />
+                        <tNote>This is the request.</tNote>
+                        <tEmailHeaders />
+                        <fNoteIsHTML>0</fNoteIsHTML>
+                        <fMergedFromRequest>0</fMergedFromRequest>
+                        <files />
+                </item>
+        </request_history>
+</request>
+
+
+    forums.list
+
+Returns a list of all the public forums
+URL: 	/api/index.php?method=forums.list
+HTTP Action: 	*GET*
+Parameters: 	none
+Simple Example:
+
+curl http://.../api/index.php?method=forums.list
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<forums>
+        <forum>
+                <xForumId>1</xForumId>
+                <sForumName>Product Beta</sForumName>
+                <sDescription>Discuss questions, bugs, ideas and more</sDescription>
+                <fClosed>0</fClosed>
+                <iOrder>0</iOrder>
+        </forum>
+</forums>
+
+
+    forums.get
+
+Return information on a forum.
+URL: 	/api/index.php?method=forums.get
+HTTP Action: 	*GET*
+Parameters:
+
+  * xForumId - *Required*
+
+Simple Example:
+
+curl "http://.../api/index.php?method=forums.get&xForumId=1"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<forum>
+        <xForumId>1</xForumId>
+        <sForumName>Product Beta</sForumName>
+        <sDescription>Discuss questions, bugs, ideas and more</sDescription>
+        <fClosed>0</fClosed>
+        <iOrder>0</iOrder>
+</forum>
+
+
+    forums.getTopics
+
+Return a list of topics from the given forum.
+URL: 	/api/index.php?method=forums.getTopics
+HTTP Action: 	*GET*
+Parameters:
+
+  * xForumId - *Required*
+  * start (record set position to start at)
+  * length (how many records to return)
+
+Simple Example:
+
+curl "http://.../api/index.php?method=forums.getTopics&xForumId=1"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<topics>
+        <topic>
+                <xTopicId>43</xTopicId>
+                <xForumId>1</xForumId>
+                <fClosed>0</fClosed>
+                <fSticky>0</fSticky>
+                <dtGMTPosted>1190081243</dtGMTPosted>
+                <sName>Bob Smith</sName>
+                <sTopic>How do I get started with installation</sTopic>
+                <postcount>2</postcount>
+        </topic>
+        <topic>
+                <xTopicId>42</xTopicId>
+                <xForumId>1</xForumId>
+                <fClosed>0</fClosed>
+                <fSticky>0</fSticky>
+                <dtGMTPosted>1190080694</dtGMTPosted>
+                <sName>Tiny Jones</sName>
+                <sTopic>Bug in the installer</sTopic>
+                <postcount>2</postcount>
+        </topic>
+</topics>
+
+
+    forums.getPosts
+
+Return a list of posts from the given topic.
+URL: 	/api/index.php?method=forums.getPosts
+HTTP Action: 	*GET*
+Parameters:
+
+  * xTopicId - *Required*
+
+Simple Example:
+
+curl "http://.../api/index.php?method=forums.getPosts&xTopicId=1"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<posts>
+        <post>
+                <xPostId>171</xPostId>
+                <xTopicId>43</xTopicId>
+                <dtGMTPosted>1190081243</dtGMTPosted>
+                <sName>Bob Smith</sName>
+                <sURL />
+                <tPost>This is my post.</tPost>
+                <sLabel />
+        </post>
+        <post>
+                <xPostId>172</xPostId>
+                <xTopicId>43</xTopicId>
+                <dtGMTPosted>1190081249</dtGMTPosted>
+                <sName>Jen Tandy</sName>
+                <sURL />
+                <tPost>Another post in reply.</tPost>
+                <sLabel />
+        </post>
+</posts>
+
+
+    forums.createTopic
+
+Create a new forum topic.
+URL: 	/api/index.php?method=forums.createTopic
+HTTP Action: 	*POST*
+Parameters:
+
+  * xForumId - *Required*
+  * sTopic - *Required*
+  * sName - *Required*
+  * tPost - *Required*
+  * sEmail
+  * sURL
+  * fEmailUpdate
+  * sIP
+  * sOS
+  * sBrowser
+
+Simple Example:
+
+curl -F"xForumId=1" -F"sTopic=Help with things" -F"tPost=Initial post" -F"sName=Bob Jones" http://.../api/index.php?method=forums.createTopic
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<topic>
+        <xTopicId>44</xTopicId>
+</topic>
+
+
+    forums.createPost
+
+Create a new forum post in the topic specified.
+URL: 	/api/index.php?method=forums.createPost
+HTTP Action: 	*POST*
+Parameters:
+
+  * xTopicId - *Required*
+  * sName - *Required*
+  * tPost - *Required*
+  * sEmail
+  * sURL
+  * fEmailUpdate
+  * sIP
+  * sOS
+  * sBrowser
+
+Simple Example:
+
+curl -F"xTopicId=43" -F"tPost=Reply to a post" -F"sName=Bob Jones" http://.../api/index.php?method=forums.createPost
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<post>
+        <xPostId>174</xPostId>
+</post>
+
+
+    forums.search
+
+Return a list of topics that match the search string.
+URL: 	/api/index.php?method=forums.search
+HTTP Action: 	*GET*
+Parameters:
+
+  * q - *Required*
+
+Simple Example:
+
+curl "http://.../api/index.php?method=forums.search&q=installation"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<topics>
+        <topic>
+                <link>?pg=forums.posts&id=22</link>
+                <desc>It would be great if the forums included a profile page.</desc>
+                <sTopic>suggestion for forums</sTopic>
+                <xTopicId>22</xTopicId>
+                <sForumName>Product Beta</sForumName>
+                <xForumId>1</xForumId>
+                <dtGMTPosted>1127936511</dtGMTPosted>
+        </topic>
+        <topic>
+                <link>?pg=forums.posts&id=13</link>
+                <desc>The installer has been updated to 3.4, please download and try it.</desc>
+                <sTopic>Update to the installer</sTopic>
+                <xTopicId>13</xTopicId>
+                <sForumName>Product Beta</sForumName>
+                <xForumId>1</xForumId>
+                <dtGMTPosted>1126815203</dtGMTPosted>
+        </topic>
+</topics>
+
+
+    kb.list
+
+Returns a list of all the public knowledge books
+URL: 	/api/index.php?method=kb.list
+HTTP Action: 	*GET*
+Parameters: 	none
+Simple Example:
+
+curl http://.../api/index.php?method=kb.list
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<books>
+        <book>
+                <xBook>1</xBook>
+                <sBookName>HelpSpot Manual</sBookName>
+                <iOrder>0</iOrder>
+                <tDescription>Everything you need to install, administer, and use HelpSpot.</tDescription>
+        </book>
+</books>
+
+
+    kb.get
+
+Return information on a knowledge book.
+URL: 	/api/index.php?method=kb.get
+HTTP Action: 	*GET*
+Parameters:
+
+  * xBook - *Required*
+
+Simple Example:
+
+curl "http://.../api/index.php?method=kb.get&xBook=1"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<book>
+        <xBook>1</xBook>
+        <sBookName>Product Manual</sBookName>
+        <iOrder>0</iOrder>
+        <tDescription>Everything you need to install, administer, and use our product.</tDescription>
+</book>
+
+
+    kb.getBookTOC
+
+Return a knowledge books table of contents. Can optionally include the
+full HTML of each page of the book.
+URL: 	/api/index.php?method=kb.getBookTOC
+HTTP Action: 	*GET*
+Parameters:
+
+  * xBook - *Required*
+  * fWithPageHTML (Optionally return the full HTML of each page)
+
+Simple Example:
+
+curl "http://.../api/index.php?method=kb.getBookTOC&xBook=1"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<toc>
+        <chapter>
+                <name>1. Getting Started</name>
+                <xChapter>2</xChapter>
+                <sChapterName>Getting Started</sChapterName>
+                <iOrder>1</iOrder>
+                <fAppendix>0</fAppendix>
+                <pages>
+                        <page>
+                                <name>1.1. Getting your help desk up and running</name>
+                                <xPage>5</xPage>
+                                <xChapter>2</xChapter>
+                                <sPageName>Getting your help desk up and running</sPageName>
+                                <iOrder>1</iOrder>
+                                <fHighlight>1</fHighlight>
+                                <tags>
+                                    <tag>Pricing</tag>
+                                    <tag>Pre-sales</tag>
+                                    <tag>Application</tag>
+                                    <tag>Service</tag>
+                                </tags>
+                        </page>
+                </pages>
+        </chapter>
+        <chapter>
+                <name>2. Installation</name>
+                <xChapter>3</xChapter>
+                <sChapterName>Installation</sChapterName>
+                <iOrder>2</iOrder>
+                <fAppendix>0</fAppendix>
+                <pages>
+                        <page>
+                                <name>2.1. Requirements</name>
+                                <xPage>2</xPage>
+                                <xChapter>3</xChapter>
+                                <sPageName>Requirements</sPageName>
+                                <iOrder>1</iOrder>
+                                <fHighlight>0</fHighlight>
+                                <tags>
+                                    <tag>Pricing</tag>
+                                    <tag>Pre-sales</tag>
+                                    <tag>Application</tag>
+                                    <tag>Service</tag>
+                                </tags>
+                                <relatedpages>
+                                        <relatedpage>
+                                                <xRelatedPage>215</xRelatedPage>
+                                                <sPageName>User Configuration</sPageName>
+                                                <sChapterName>Setup</sChapterName>
+                                                <sBookName>Admin Manual</sBookName>
+                                                <xBook>1</xBook>
+                                        </relatedpage>
+                                        <relatedpage>
+                                                <xRelatedPage>102</xRelatedPage>
+                                                <sPageName>Installing on SQL Server</sPageName>
+                                                <sChapterName>Installation</sChapterName>
+                                                <sBookName>Admin Manual</sBookName>
+                                                <xBook>1</xBook>
+                                        </relatedpage>
+                                </relatedpages>
+                        </page>
+                        <page>
+                                <name>2.2. Installing the Product</name>
+                                <xPage>3</xPage>
+                                <xChapter>3</xChapter>
+                                <sPageName>Installing the Product</sPageName>
+                                <iOrder>3</iOrder>
+                                <fHighlight>1</fHighlight>
+                                <tags>
+                                    <tag>Pricing</tag>
+                                </tags>
+                        </page>
+                        <page>
+                               <name>2.3. Creating the Microsoft SQL Server Full Text Index</name>
+                                <xPage>4</xPage>
+                                <xChapter>3</xChapter>
+                                <sPageName>Creating the Microsoft SQL Server Full Text Index</sPageName>
+                                <iOrder>4</iOrder>
+                                <fHighlight>0</fHighlight>
+                        </page>
+                        <page>
+                                <name>2.4. Upgrading</name>
+                                <xPage>14</xPage>
+                                <xChapter>3</xChapter>
+                                <sPageName>Upgrading</sPageName>
+                                <iOrder>5</iOrder>
+                                <fHighlight>1</fHighlight>
+                        </page>
+                        <page>
+                                <name>2.5. Clean Upgrade</name>
+                                <xPage>16</xPage>
+                                <xChapter>3</xChapter>
+                                <sPageName>Clean Upgrade</sPageName>
+                                <iOrder>6</iOrder>
+                                <fHighlight>0</fHighlight>
+                        </page>
+                </pages>
+        </chapter>
+</toc>
+
+
+    kb.getPage
+
+Return information on a knowledge book page.
+URL: 	/api/index.php?method=kb.getPage
+HTTP Action: 	*GET*
+Parameters:
+
+  * xPage - *Required*
+
+Simple Example:
+
+curl "http://.../api/index.php?method=kb.getPage&xPage=16"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<page>
+        <name>2.5. Clean Upgrade</name>
+        <xPage>16</xPage>
+        <xChapter>3</xChapter>
+        <sPageName>Clean Upgrade</sPageName>
+        <tPage><p>This is the HTML body of the page.</p></tPage>
+        <iOrder>6</iOrder>
+        <fHighlight>0</fHighlight>
+        <tags>
+            <tag>Pricing</tag>
+            <tag>Pre-sales</tag>
+            <tag>Application</tag>
+            <tag>Service</tag>
+        </tags>
+        <relatedpages>
+                <relatedpage>
+                        <xRelatedPage>215</xRelatedPage>
+                        <sPageName>User Configuration</sPageName>
+                        <sChapterName>Setup</sChapterName>
+                        <sBookName>Admin Manual</sBookName>
+                        <xBook>1</xBook>
+                </relatedpage>
+                <relatedpage>
+                        <xRelatedPage>102</xRelatedPage>
+                        <sPageName>Installing on SQL Server</sPageName>
+                        <sChapterName>Installation</sChapterName>
+                        <sBookName>Admin Manual</sBookName>
+                        <xBook>1</xBook>
+                </relatedpage>
+        </relatedpages>
+</page>
+
+
+    kb.search
+
+Return a list of pages that match the search string.
+URL: 	/api/index.php?method=kb.search
+HTTP Action: 	*GET*
+Parameters:
+
+  * q - *Required*
+
+Simple Example:
+
+curl "http://.../api/index.php?method=kb.search&q=installation"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<pages>
+        <page>
+                <link>?pg=kb.page&id=16</link>
+                <desc>Page about installation</desc>
+                <sBookName>Product Manual</sBookName>
+                <sPageName>Installing the product</sPageName>
+                <xPage>16</xPage>
+        </page>
+        <page>
+                <link>?pg=kb.page&id=8</link>
+                <desc>How to install on Linux</desc>
+                <sBookName>Product Manual</sBookName>
+                <sPageName>Installing on Linux</sPageName>
+                <xPage>8</xPage>
+        </page>
+</pages>
+
+
+    kb.voteHelpful
+
+Adds a vote for this page as "helpful"
+/Available as of HelpSpot version: 2.4.2/
+URL: 	/api/index.php?method=kb.voteHelpful
+HTTP Action: 	*GET*
+Parameters:
+
+  * xPage - *Required*
+
+Simple Example:
+
+curl "http://.../api/index.php?method=kb.voteHelpful&xPage=125"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<page>
+    <iHelpful />
+</page>
+
+
+    kb.voteNotHelpful
+
+Adds a vote for this page as "not helpful"
+/Available as of HelpSpot version: 2.4.2/
+URL: 	/api/index.php?method=kb.voteNotHelpful
+HTTP Action: 	*GET*
+Parameters:
+
+  * xPage - *Required*
+
+Simple Example:
+
+curl "http://.../api/index.php?method=kb.voteNotHelpful&xPage=125"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<page>
+    <iNotHelpful />
+</page>
+
+
+    util.getFieldLabels
+
+Returns a list of field labels for use in your interfaces.
+URL: 	/api/index.php?method=util.getFieldLabels
+HTTP Action: 	*GET*
+Parameters: 	none
+Simple Example:
+
+curl http://.../api/index.php?method=util.getFieldLabels
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<labels>
+        <iLastReplyBy>Replied To</iLastReplyBy>
+        <fOpenedVia>Contacted Via</fOpenedVia>
+        <mailbox>Mailbox</mailbox>
+        <fOpen>Open</fOpen>
+        <xRequest>ID</xRequest>
+        <sUserId>Customer ID</sUserId>
+        <fullname>Customer</fullname>
+        <sLastName>Last Name</sLastName>
+        <sEmail>Email</sEmail>
+        <sPhone>Phone</sPhone>
+        <xPersonOpenedBy>Opened By</xPersonOpenedBy>
+        <xPersonAssignedTo>Assigned To</xPersonAssignedTo>
+        <xStatus>Status</xStatus>
+        <sCategory>Category</sCategory>
+        <sTitle>Email Subject</sTitle>
+        <reqsummary>Initial Request</reqsummary>
+        <lastpublicnote>Latest Public Note</lastpublicnote>
+        <lastpublicnoteby>Latest Public Note By</lastpublicnoteby>
+        <dtGMTOpened>Opened</dtGMTOpened>
+        <dtGMTClosed>Closed</dtGMTClosed>
+        <dtGMTTrashed>Trashed On</dtGMTTrashed>
+        <lastupdate>Last Update</lastupdate>
+        <lastpubupdate>Last Public Update</lastpubupdate>
+        <lastcustupdate>Last Customer Update</lastcustupdate>
+        <ctPublicUpdates>#</ctPublicUpdates>
+        <age>Age</age>
+        <timetrack>Time</timetrack>
+</labels>
+
+
+  4.5. Private Methods
+
+/Be sure you've read the API Basics
+<https://support.helpspot.com/helpdesk/index.php?pg=kb.page&id=162>
+before working with the public API. /
+
+/You can find what each field/parameter is on the API Field Definitions
+<https://support.helpspot.com/helpdesk/index.php?pg=kb.page&id=157> page. /
+
+
+    Methods:
+
+  * private.customer.setPasswordByEmail
+    <#private.customer.setPasswordByEmail>
+  * private.request.create <#private.request.create>
+  * private.request.update <#private.request.update>
+  * private.request.get <#private.request.get>
+  * private.request.multiGet <#private.request.multiGet>
+  * private.request.search <#private.request.search>
+  * private.request.addTimeEvent <#private.request.addTimeEvent>
+  * private.request.deleteTimeEvent <#private.request.deleteTimeEvent>
+  * private.request.getTimeEvents <#private.request.getTimeEvents>
+  * private.request.getCategories <#private.request.getCategories>
+  * private.request.getMailboxes <#private.request.getMailboxes>
+  * private.request.getStatusTypes <#private.request.getStatusTypes>
+  * private.request.getCustomFields <#private.request.getCustomFields>
+  * private.request.merge <#private.request.merge>
+  * private.request.getChanged <#private.request.getChanged>
+  * private.request.subscriptions <#private.request.subscriptions>
+  * private.request.subscribe <#private.request.subscribe>
+  * private.request.unsubscribe <#private.request.unsubscribe>
+  * private.request.markTrash <#private.request.markTrash>
+  * private.request.markSpam <#private.request.markSpam>
+  * private.document.get <#private.document.get>
+  * private.response.listAll <#private.response.listAll>
+  * private.response.usersMostCommon <#private.response.usersMostCommon>
+  * private.response.get <#private.response.get>
+  * private.filter.get <#private.filter.get>
+  * private.filter.getColumnNames <#private.filter.getColumnNames>
+  * private.filter.getStream <#private.filter.getStream>
+  * private.timetracker.search <#private.timetracker.search>
+  * private.user.getFilters <#private.user.getFilters>
+  * private.user.preferences <#private.user.preferences>
+  * private.util.getActiveStaff <#private.util.getActiveStaff>
+  * private.addressbook.createContact <#private.addressbook.createContact>
+  * private.addressbook.deleteContact <#private.addressbook.deleteContact>
+  * private.addressbook.getContacts <#private.addressbook.getContacts>
+
+
+    private.customer.setPasswordByEmail
+
+Set the portal password for an email account.
+URL: 	/api/index.php?method=private.customer.setPasswordByEmail
+HTTP Action: 	*GET*
+Parameters:
+
+  * sEmail - *Required*
+  * sPassword - *Required*
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.customer.setPasswordByEmail&sEmail=tsmith@companyco.com&sPassword=8!TrucK"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<results>
+    <sPassword>8!TrucK</sPassword>
+</results>
+
+
+    private.request.create
+
+Create a new request.
+URL: 	/api/index.php?method=private.request.create
+HTTP Action: 	*POST*
+Parameters:
+
+  * tNote - *Required*
+  * xCategory - *Required*
+  * xPersonAssignedTo
+  * fNoteType (0 private /(default)/, 1 public, 2 external)
+  * fNoteIsHTML (1 HTML, 0 Text - defaults to Admin->Settings->HTML
+    Emails on/off value)
+  * xPersonOpenedBy (0 is the customer, defaults to user connecting to
+    the API)
+  * sTitle (Used as email subject)
+  * reportingTags (Comma separated list of each xReportingTag ID)
+  * fOpen
+  * xStatus
+  * sUserId
+  * sFirstName
+  * sLastName
+  * sEmail
+  * sPhone
+  * fUrgent
+  * fOpenedVia
+  * xPortal
+  * dtGMTOpened (defaults to current time in Unix timestamp format)
+  * email_from (ID(xMailbox) of the mailbox to send the email from, use
+    0 to not send an email)
+  * email_cc (Comma separated list of emails)
+  * email_bcc (Comma separated list of emails)
+  * email_to (Comma separated list of emails - external notes only)
+  * email_staff (Comma separated list of staff ID's(xPerson))
+  * File*#*_sFilename (# is the file number starting at 1)
+  * File*#*_sFileMimeType
+  * File*#*_bFileBody (Base64 Encoded File Body)
+  * Custom*#* (# is the custom field ID)
+  * skipCustomChecks (set to 1 to allow custom field checks to be skipped)
+
+Other notes: 	In addition to tNote and xCategory you must also have at
+least one of the following set: sFirstName,sLastName,sUserId,sEmail,sPhone
+Other notes: 	You can use this method to import requests from other
+systems by making sure you set email_from to 0 (so emails are not sent
+to customers) and setting dtGMTOpened to the time of the original request.
+Simple Example:
+
+curl -F"tNote=This is the request." -F"sUserId=12345" -F"xCategory=1" -u tim@ex.com:mypassword http://.../api/index.php?method=private.request.create
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<request>
+        <xRequest>12746</xRequest>
+</request>
+
+
+    private.request.update
+
+Update an existing request.
+URL: 	/api/index.php?method=private.request.update
+HTTP Action: 	*POST*
+Parameters:
+
+  * xRequest - *Required*
+  * tNote
+  * xCategory
+  * xPersonAssignedTo
+  * xPerson (set to 0 to update as the customer)
+  * fNoteType (0 private /(default)/, 1 public, 2 external)
+  * sTitle (Used as email subject)
+  * reportingTags (Comma separated list of each xReportingTag ID)
+  * fOpen
+  * xStatus
+  * sUserId
+  * sFirstName
+  * sLastName
+  * sEmail
+  * sPhone
+  * fUrgent
+  * dtGMTChange (defaults to current time in Unix timestamp format)
+  * email_from (ID(xMailbox) of the mailbox to send the email from, use
+    0 to not send an email)
+  * email_cc (Comma separated list of emails)
+  * email_bcc (Comma separated list of emails)
+  * email_to (Comma separated list of emails - external notes only)
+  * email_staff (Comma separated list of staff ID's(xPerson))
+  * File*#*_sFilename (# is the file number starting at 1)
+  * File*#*_sFileMimeType
+  * File*#*_bFileBody (Base64 Encoded File Body)
+  * Custom*#* (# is the custom field ID)
+  * skipCustomChecks (set to 1 to allow custom field checks to be skipped)
+
+Simple Example:
+
+curl -F"xRequest=12746" -F"tNote=Update the request." -u tim@ex.com:mypassword http://.../api/index.php?method=private.request.update
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<request>
+        <xRequest>12746</xRequest>
+</request>
+
+
+    private.request.get
+
+Return all information on a request.
+URL: 	/api/index.php?method=private.request.get
+HTTP Action: 	*GET*
+Parameters:
+
+  * xRequest - *Required*
+  * fRawValues (defaults to 0)
+
+Other notes: 	As a convenience fRawValues is set to 0 (false) by default
+so that numeric values you would normally have to transform (staff ID's,
+dates, categories) are shown by their text representation. If you need
+the actual numeric values for these items set fRawValues to 1.
+Merge notes 	If requesting a request which has been merged, the merged
+request will be returned. The new request ID is returned and will be
+different from the one you called for which you can use to check if
+knowing that the request was merged is important in your usage.
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.request.get&xRequest=12745"
+
+Sample Response:
+
+<request>
+        <xRequest>12745</xRequest>
+        <fOpenedVia>Web Service</fOpenedVia>
+        <xOpenedViaId>0</xOpenedViaId>
+        <xPersonOpenedBy />
+        <xPersonAssignedTo>Ian Landsman</xPersonAssignedTo>
+        <fOpen>1</fOpen>
+        <xStatus>Active</xStatus>
+        <fUrgent>0</fUrgent>
+        <xCategory>Bugs</xCategory>
+        <dtGMTOpened>September 24, 2007</dtGMTOpened>
+        <dtGMTClosed />
+        <sRequestPassword>itetxb</sRequestPassword>
+        <sTitle />
+        <sUserId>12345</sUserId>
+        <sFirstName />
+        <sLastName />
+        <sEmail />
+        <sPhone />
+        <iLastReplyBy>Ian Landsman</iLastReplyBy>
+        <fTrash>0</fTrash>
+        <dtGMTTrashed />
+        <fullname> </fullname>
+        <reportingTags>
+                <tag>
+                        <xReportingTag>29</xReportingTag>
+                        <sReportingTag>Payment Inquires</sReportingTag>
+                </tag>
+        </reportingTags>
+        <request_history>
+                <item>
+                        <xRequestHistory>1378</xRequestHistory>
+                        <xRequest>12745</xRequest>
+                        <xPerson>Ian Landsman</xPerson>
+                        <dtGMTChange>Tue, September 25, 2007, 11:00 AM</dtGMTChange>
+                        <fPublic>1</fPublic>
+                        <fInitial>0</fInitial>
+                        <tLog />
+                        <tNote><p>An HTML note example</p></tNote>
+                        <tEmailHeaders />
+                        <fNoteIsHTML>1</fNoteIsHTML>
+                        <fMergedFromRequest>0</fMergedFromRequest>
+                        <files>
+                                <file>
+                                        <sFileMimeType>application/pdf</sFileMimeType>
+                                        <sFilename>Invoice.pdf</sFilename>
+                                        <xDocumentId>60</xDocumentId>
+                                        <public_url>http://www.domain.com/index.php?pg=file&from=3&id=60&reqid=12745&reqhisid=1378</public_url>
+                                        <private_url>http://www.domain.com/admin.php?pg=file&from=0&id=60&showfullsize=1&download=1</private_url>
+                                </file>
+                        </files>
+                </item>
+                <item>
+                        <xRequestHistory>1377</xRequestHistory>
+                        <xRequest>12745</xRequest>
+                        <xPerson>Ian Landsman</xPerson>
+                        <dtGMTChange>Tue, September 25, 2007, 11:00 AM</dtGMTChange>
+                        <fPublic>0</fPublic>
+                        <fInitial>0</fInitial>
+                        <tLog>Category changed from "" to "Bugs"</tLog>
+                        <tNote />
+                        <tEmailHeaders />
+                        <fNoteIsHTML>0</fNoteIsHTML>
+                        <fMergedFromRequest>0</fMergedFromRequest>
+                </item>
+                <item>
+                        <xRequestHistory>1376</xRequestHistory>
+                        <xRequest>12745</xRequest>
+                        <xPerson> </xPerson>
+                        <dtGMTChange>Mon, September 24, 2007, 08:03 PM</dtGMTChange>
+                        <fPublic>1</fPublic>
+                        <fInitial>0</fInitial>
+                        <tLog />
+                        <tNote>Plain text update to the request.</tNote>
+                        <tEmailHeaders />
+                        <fNoteIsHTML>0</fNoteIsHTML>
+                        <fMergedFromRequest>0</fMergedFromRequest>
+                        <files />
+                </item>
+                <item>
+                        <xRequestHistory>1375</xRequestHistory>
+                        <xRequest>12745</xRequest>
+                        <xPerson> </xPerson>
+                        <dtGMTChange>Mon, September 24, 2007, 07:44 PM</dtGMTChange>
+                        <fPublic>1</fPublic>
+                        <fInitial>1</fInitial>
+                        <tLog />
+                        <tNote>This is the request.</tNote>
+                        <tEmailHeaders />
+                        <fNoteIsHTML>0</fNoteIsHTML>
+                        <fMergedFromRequest>0</fMergedFromRequest>
+                        <files />
+                </item>
+        </request_history>
+</request>
+
+
+    private.request.multiGet
+
+Return request information for more than one request at a time.
+URL: 	/api/index.php?method=private.request.multiGet
+HTTP Action: 	*GET*
+Parameters:
+
+  * xRequest - *Required* - an array of request ID's.
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.request.multiGet&xRequest[]=12745&xRequest[]=847373&xRequest[]=56733"
+
+Response:
+
+Returns an array of response details the same as private.request.get.
+
+
+    private.request.search
+
+Search for requests.
+URL: 	/api/index.php?method=private.request.search
+HTTP Action: 	*GET*
+Parameters:
+
+  * anyall (Should any or all(the default) search parameters be required
+    to match)
+  * xRequest
+  * sUserId
+  * sFirstName
+  * sLastName
+  * sEmail
+  * sPhone
+  * sSearch (full text search string)
+  * xStatus
+  * xCategory
+  * fOpen
+  * Custom#
+  * fRawValues (defaults to 0)
+  * beforeDate (Unix timestamp format)
+  * afterDate (Unix timestamp format)
+  * closedBeforeDate (Unix timestamp format)
+  * closedAfterDate (Unix timestamp format)
+  * relativedate (See API Definition page for details)
+  * start
+  * length
+  * orderBy (accepts any of these parameters such as xRequest, sLastName)
+  * orderByDir (desc or asc)
+  * xPersonAssignedTo
+
+Other notes: 	As a convenience fRawValues is set to 0 (false) by default
+so that numeric values you would normally have to transform (staff ID's,
+dates, categories) are shown by their text representation. If you need
+the actual numeric values for these items set fRawValues to 1.
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.request.search&sSearch=printer"
+
+Sample Response:
+
+<requests>
+        <request>
+                <xRequest>12650</xRequest>
+                <fOpenedVia>Phone</fOpenedVia>
+                <xOpenedViaId>0</xOpenedViaId>
+                <xPersonOpenedBy>Ian Landsman</xPersonOpenedBy>
+                <xPersonAssignedTo>Ian Landsman</xPersonAssignedTo>
+                <fOpen>1</fOpen>
+                <xStatus>Active</xStatus>
+                <fUrgent>1</fUrgent>
+                <xCategory>Bugs</xCategory>
+                <dtGMTOpened>January 16, 2006</dtGMTOpened>
+                <dtGMTClosed />
+                <sRequestPassword>oxvgys</sRequestPassword>
+                <sTitle>RE: Update on Your Request</sTitle>
+                <sUserId />
+                <sFirstName />
+                <sLastName>landsman</sLastName>
+                <sEmail />
+                <sPhone />
+                <iLastReplyBy>0</iLastReplyBy>
+                <fTrash>0</fTrash>
+                <dtGMTTrashed />
+                <fullname> landsman</fullname>
+                <tNote><span class="initsubject">Some text here</span> - Help with printer issue please.</tNote>
+        </request>
+        <request>
+                <xRequest>12733</xRequest>
+                <fOpenedVia>Web Service</fOpenedVia>
+                <xOpenedViaId>0</xOpenedViaId>
+                <xPersonOpenedBy />
+                <xPersonAssignedTo>Ian Landsman</xPersonAssignedTo>
+                <fOpen>1</fOpen>
+                <xStatus>Active</xStatus>
+                <fUrgent>0</fUrgent>
+                <xCategory>Bugs</xCategory>
+                <dtGMTOpened>September 13, 2007</dtGMTOpened>
+                <dtGMTClosed />
+                <sRequestPassword>bwpkqv</sRequestPassword>
+                <sTitle />
+                <sUserId>567</sUserId>
+                <sFirstName />
+                <sLastName />
+                <sEmail />
+                <sPhone />
+                <iLastReplyBy>0</iLastReplyBy>
+                <fTrash>0</fTrash>
+                <dtGMTTrashed />
+                <fullname> </fullname>
+                <tNote><span class="initsubject">Text Here</span> - Need printer assistance.</tNote>
+        </request>
+</requests>
+
+
+    private.request.addTimeEvent
+
+Add a time tracker time event to a request.
+URL: 	/api/index.php?method=private.request.addTimeEvent
+HTTP Action: 	*POST*
+Parameters:
+
+  * xRequest - *Required*
+  * xPerson - *Required*
+  * iMonth - *Required*
+  * iDay - *Required*
+  * iYear - *Required*
+  * tDescription - *Required*
+  * tTime (time formatted in hh:mm or decimal hours, ex: 2.5) - *Required*
+  * dtGMTDateAdded (set the exact unix timestamp of when the event was
+    added)
+  * fBillable
+
+Simple Example:
+
+curl -F"xRequest=12650" -F"xPerson=2" -F"iMonth=10" -F"iDay=21" -F"iYear=2007" -F"tDescription=fixed printer" -F"tTime=2:30" -u tim@ex.com:mypassword http://.../api/index.php?method=private.request.addTimeEvent
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<results>
+        <xTimeId>26</xTimeId>
+</results>
+
+
+    private.request.deleteTimeEvent
+
+Delete a time tracker time event.
+URL: 	/api/index.php?method=private.request.deleteTimeEvent
+HTTP Action: 	*POST*
+Parameters:
+
+  * xTimeId - *Required*
+
+Simple Example:
+
+curl -F"xTimeId=754" -u tim@ex.com:mypassword http://.../api/index.php?method=private.request.deleteTimeEvent
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<results>
+        <deleted>1</deleted>
+</results>
+
+
+    private.request.getTimeEvents
+
+Return all time tracker time events from a request.
+URL: 	/api/index.php?method=private.request.getTimeEvents
+HTTP Action: 	*GET*
+Parameters:
+
+  * xRequest - *Required*
+  * fRawValues (defaults to 0)
+
+Other notes: 	As a convenience fRawValues is set to 0 (false) by default
+so that numeric values you would normally have to transform (staff ID's,
+dates, categories) are shown by their text representation. If you need
+the actual numeric values for these items set fRawValues to 1.
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.request.getTimeEvents&xRequest=12650"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<time_events>
+        <event>
+                <xTimeId>27</xTimeId>
+                <xRequest>12650</xRequest>
+                <xPerson>Tina Andrews</xPerson>
+                <iSeconds>9000</iSeconds>
+                <dtGMTDate>September 25, 2007</dtGMTDate>
+                <dtGMTDateAdded>Wed, September 26, 2007, 01:18 PM</dtGMTDateAdded>
+                <tDescription>Delivered printer</tDescription>
+        </event>
+        <event>
+                <xTimeId>28</xTimeId>
+                <xRequest>12650</xRequest>
+                <xPerson>Tina Andrews</xPerson>
+                <iSeconds>9000</iSeconds>
+                <dtGMTDate>September 26, 2007</dtGMTDate>
+                <dtGMTDateAdded>Wed, September 26, 2007, 03:18 PM</dtGMTDateAdded>
+                <tDescription>Installed printer</tDescription>
+        </event>
+</time_events>
+
+
+    private.request.getCategories
+
+Returns a list of all categories along with each categories related
+information such as reporting tags.
+URL: 	/api/index.php?method=private.request.getCategories
+HTTP Action: 	*GET*
+Parameters: 	none
+Other notes: 	If using this information for a user interface, it's
+recommended you only show categories which are active (where fDeleted = 0).
+Simple Example:
+
+curl -u tim@ex.com:mypassword http://.../api/index.php?method=private.request.getCategories
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<categories>
+        <category>
+                <xCategory>1</xCategory>
+                <sCategory>Pre Sales Question</sCategory>
+                <sCategoryGroup></sCategoryGroup>
+                <fDeleted>0</fDeleted>
+                <fAllowPublicSubmit>1</fAllowPublicSubmit>
+                <xPersonDefault>1</xPersonDefault>
+                <fAutoAssignTo>0</fAutoAssignTo>
+                <sPersonList>
+                        <person>
+                                <xPerson>3</xPerson>
+                                <fullname>Steve Benson</fullname>
+                                <assigned_requests>6</assigned_requests>
+                        </person>
+                        <person>
+                                <xPerson>4</xPerson>
+                                <fullname>Tiffany Prince</fullname>
+                                <assigned_requests>7</assigned_requests>
+                        </person>
+                        <person>
+                                <xPerson>5</xPerson>
+                                <fullname>Henry Yount</fullname>
+                                <assigned_requests>8</assigned_requests>
+                        </person>
+                </sPersonList>
+                <sCustomFieldList>
+                        <xCustomField>2</xCustomField>
+                        <xCustomField>13</xCustomField>
+                </sCustomFieldList>
+                <reportingTags>
+                        <tag>
+                                <xReportingTag>5</xReportingTag>
+                                <sReportingTag>Pricing</sReportingTag>
+                        </tag>
+                        <tag>
+                                <xReportingTag>9</xReportingTag>
+                                <sReportingTag>Support Options</sReportingTag>
+                        </tag>
+                        <tag>
+                                <xReportingTag>7</xReportingTag>
+                                <sReportingTag>System Requirements</sReportingTag>
+                        </tag>
+                </reportingTags>
+        </category>
+</categories>
+
+
+    private.request.getMailboxes
+
+Returns a list of mailboxes.
+URL: 	/api/index.php?method=private.request.getMailboxes
+HTTP Action: 	*GET*
+Parameters:
+
+  * fActiveOnly (defaults to 1, use 0 to find inactive mailboxes.)
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword http://.../api/index.php?method=private.request.getMailboxes
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<results>
+        <mailbox>
+                <xMailbox>3</xMailbox>
+                <sReplyName>Test Account</sReplyName>
+                <sReplyEmail>systest@userscape.com</sReplyEmail>
+        </mailbox>
+</results>
+
+
+    private.request.getStatusTypes
+
+Returns a list of status types.
+URL: 	/api/index.php?method=private.request.getStatusTypes
+HTTP Action: 	*GET*
+Parameters:
+
+  * fActiveOnly (defaults to 1, use 0 to find inactive status types.)
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword http://.../api/index.php?method=private.request.getStatusTypes
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<results>
+    <status>
+        <sStatus>Active</sStatus>
+        <xStatus>1</xStatus>
+    </status>
+    <status>
+        <sStatus>Problem Solved</sStatus>
+
+        <xStatus>3</xStatus>
+    </status>
+    <status>
+        <sStatus>Not Fixable</sStatus>
+        <xStatus>4</xStatus>
+    </status>
+    <status>
+
+        <sStatus>Customer Unreachable</sStatus>
+        <xStatus>5</xStatus>
+    </status>
+    <status>
+        <sStatus>Customer Found Solution</sStatus>
+        <xStatus>6</xStatus>
+    </status>
+
+    <status>
+        <sStatus>Software Bug</sStatus>
+        <xStatus>7</xStatus>
+    </status>
+    <status>
+        <sStatus>SPAM</sStatus>
+        <xStatus>2</xStatus>
+
+    </status>
+</results>
+
+
+    private.request.getCustomFields
+
+Returns a list of custom fields.
+URL: 	/api/index.php?method=private.request.getCustomFields
+HTTP Action: 	*GET*
+Parameters:
+
+  * xCategory (Optionally limit the results to one categories custom fields)
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword http://.../api/index.php?method=private.request.getCustomFields
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<customfields>
+        <field>
+                <xCustomField>10</xCustomField>
+                <fieldName>Ajax Lookup</fieldName>
+                <isRequired>1</isRequired>
+                <isPublic>0</isPublic>
+                <fieldType>ajax</fieldType>
+                <iOrder>0</iOrder>
+                <sTxtSize />
+                <lrgTextRows />
+                <listItems />
+                <iDecimalPlaces>0</iDecimalPlaces>
+                <sRegex />
+                <sAjaxUrl>http://www.domain.com/ajax_field_lookup.php</sAjaxUrl>
+                <isAlwaysVisible>0</isAlwaysVisible>
+        </field>
+        <field>
+                <xCustomField>7</xCustomField>
+                <fieldName>VIP Customer</fieldName>
+                <isRequired>0</isRequired>
+                <isPublic>1</isPublic>
+                <fieldType>checkbox</fieldType>
+                <iOrder>0</iOrder>
+                <sTxtSize />
+                <lrgTextRows />
+                <listItems />
+                <iDecimalPlaces>0</iDecimalPlaces>
+                <sRegex />
+                <sAjaxUrl />
+                <isAlwaysVisible>0</isAlwaysVisible>
+        </field>
+        <field>
+                <xCustomField>2</xCustomField>
+                <fieldName>Database Type</fieldName>
+                <isRequired>0</isRequired>
+                <isPublic>1</isPublic>
+                <fieldType>select</fieldType>
+                <iOrder>0</iOrder>
+                <sTxtSize />
+                <lrgTextRows />
+                <listItems>
+                        <item>MySQL</item>
+                        <item>MS SQL Server</item>
+                        <item>PostgreSQL</item>
+                </listItems>
+                <iDecimalPlaces>0</iDecimalPlaces>
+                <sRegex />
+                <sAjaxUrl />
+                <isAlwaysVisible>0</isAlwaysVisible>
+        </field>
+</customfields>
+
+
+    private.request.merge
+
+Merge two requests.
+URL: 	/api/index.php?method=private.request.merge
+HTTP Action: 	*POST*
+Parameters:
+
+  * xRequestFrom - *Required* (The ID of the request to merge)
+  * xRequestTo - *Required* (The ID of the request to merge xRequestFrom
+    into)
+
+Simple Example:
+
+curl -F"xRequestFrom=12678" -F"xRequestTo=12690" -u tim@ex.com:mypassword http://.../api/index.php?method=private.request.merge
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<results>
+    <xRequest>12426</xRequest>
+</results>
+
+
+    private.request.getChanged
+
+Return all requests which have changed since the date given.
+URL: 	/api/index.php?method=private.request.getChanged
+HTTP Action: 	*GET*
+Parameters:
+
+  * dtGMTChange - *Required*
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.request.getChanged&dtGMTChange=1309444160"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<requests>
+    <xRequest>46550</xRequest>
+    <xRequest>46550</xRequest>
+    <xRequest>46554</xRequest>
+    <xRequest>46554</xRequest>
+    <xRequest>46554</xRequest>
+    <xRequest>46554</xRequest>
+</requests>
+
+
+    private.request.subscriptions
+
+Find a users subscriptions.
+URL: 	/api/index.php?method=private.request.subscriptions
+HTTP Action: 	*GET*
+Parameters:
+
+  * xPerson - *Required*
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.request.subscriptions&xPerson=1"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<subscriptions>
+    <request>
+        <xRequest>46632</xRequest>
+        <xSubscriptions>30</xSubscriptions>
+    </request>
+    <request>
+        <xRequest>46633</xRequest>
+        <xSubscriptions>29</xSubscriptions>
+    </request>
+</subscriptions>
+
+
+    private.request.subscribe
+
+Subscribe a user to a request.
+URL: 	/api/index.php?method=private.request.subscribe
+HTTP Action: 	*POST*
+Parameters:
+
+  * xRequest - *Required*
+  * xPerson - *Required*
+
+Simple Example:
+
+curl -F"xRequest=12345" -F"xPerson=4" -u tim@ex.com:mypassword "http://.../api/index.php?method=private.request.subscribe"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<results>
+    <subscribed>4</subscribed>
+</results>
+
+
+    private.request.unsubscribe
+
+Unsubscribe a user from a request.
+URL: 	/api/index.php?method=private.request.unsubscribe
+HTTP Action: 	*POST*
+Parameters:
+
+  * xRequest - *Required*
+  * xPerson - *Required*
+
+Simple Example:
+
+curl -F"xRequest=12345" -F"xPerson=4" -u tim@ex.com:mypassword "http://.../api/index.php?method=private.request.unsubscribe"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<results>
+    <unsubscribed>4</unsubscribed>
+</results>
+
+
+    private.request.markTrash
+
+Mark a request as trash.
+URL: 	/api/index.php?method=private.request.markTrash
+HTTP Action: 	*POST*
+Parameters:
+
+  * xRequest - *Required*
+
+Simple Example:
+
+curl -F"xRequest=12345" -u tim@ex.com:mypassword "http://.../api/index.php?method=private.request.markTrash"
+
+Sample Response:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<result>
+	<trashed>12400</trashed>
+</result>
+
+
+    private.request.markSpam
+
+Mark a request as spam.
+URL: 	/api/index.php?method=private.request.markSpam
+HTTP Action: 	*POST*
+Parameters:
+
+  * xRequest - *Required*
+
+Simple Example:
+
+curl -F"xRequest=12345" -u tim@ex.com:mypassword "http://.../api/index.php?method=private.request.markSpam"
+
+Sample Response:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<result>
+	<spammed>12410</spammed>
+</result>
+
+
+    private.document.get
+
+Get a document based on its id.
+URL: 	/api/index.php?method=private.document.get
+HTTP Action: 	*GET*
+Parameters:
+
+  * xDocumentId - *Required*
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.document.get&xDocumentId=1"
+
+Sample Response:
+
+<?xml version="1.0" encoding="UTF-8"?>
+            <document>
+                <xDocumentId>1</xDocumentId>
+                <sFilename>unknown_filename.eml</sFilename>
+                <sFileMimeType>message/rfc822</sFileMimeType>
+                <sCID />
+                <sBody>UmV0dXJuLVBhdGg6IDx0cmFp==</sBody>
+            </document>;
+
+
+    private.response.listAll
+
+Return all your responses.
+URL: 	/api/index.php?method=private.response.listAll
+HTTP Action: 	*GET*
+Parameters:
+
+  * *None*
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.response.listAll"
+
+Sample Response:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<responses>
+	<response>
+		<xResponse>1</xResponse>
+		<sResponseTitle>Password Reset</sResponseTitle>
+		<sFolder>My Responses</sFolder>
+		<tResponse>Hello,
+
+Please go to the website to reset your password.
+
+Support Team</tResponse>
+		<xPerson>1</xPerson>
+		<fType>2</fType>
+		<fDeleted>0</fDeleted>
+		<fullname>Ian Landsman</fullname>
+		<pathname>My Responses / Password Reset</pathname>
+	</response>
+</responses>
+
+
+    private.response.usersMostCommon
+
+Return the 10 most common responeses for the authenticated user.
+URL: 	/api/index.php?method=private.request.usersMostCommon
+HTTP Action: 	*GET*
+Parameters:
+
+  * *None*
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.response.usersMostCommon"
+
+Sample Response:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<responses>
+	<response>
+		<xResponse>1</xResponse>
+		<sResponseTitle>Password Reset</sResponseTitle>
+		<stat_count>420</stat_count>
+	</response>
+</responses>
+
+
+    private.response.get
+
+Get details on a response by ID.
+URL: 	/api/index.php?method=private.response.get
+HTTP Action: 	*GET*
+Parameters:
+
+  * xResponse - *Required*
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.response.get&xResponse=1"
+
+Sample Response:
+
+<?xml version="1.0" encoding="UTF-8"?>
+<response>
+	<xResponse>1</xResponse>
+	<sResponseTitle>Password Reset</sResponseTitle>
+	<sFolder>My Responses</sFolder>
+	<tResponse>Hello,
+
+Please go to the website to reset your password.
+
+Support Team</tResponse>
+	<xPerson>1</xPerson>
+	<fType>2</fType>
+	<fDeleted>0</fDeleted>
+</response>
+
+
+    private.filter.get
+
+Return the results of a users filter.
+URL: 	/api/index.php?method=private.filter.get
+HTTP Action: 	*GET*
+Parameters:
+
+  * xFilter - *Required* (a filter ID or 'inbox' or 'myq')
+  * fRawValues (defaults to 0)
+  * start
+  * length
+
+Other notes:
+
+As a convenience fRawValues is set to 0 (false) by default so that
+numeric values you would normally have to transform (staff ID's, dates,
+categories) are shown by their text representation. If you need the
+actual numeric values for these items set fRawValues to 1.
+
+tNote is not the full initial request, just the first few sentances.
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.filter.get&xFilter=12"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<filter>
+        <request>
+                <xRequest>12624</xRequest>
+                <fOpenedVia>Email</fOpenedVia>
+                <xOpenedViaId>Customer.Service</xOpenedViaId>
+                <xPersonOpenedBy />
+                <xPersonAssignedTo>Henry Yount</xPersonAssignedTo>
+                <fOpen>1</fOpen>
+                <xStatus>Active</xStatus>
+                <fUrgent>0</fUrgent>
+                <xCategory>Feature Request</xCategory>
+                <dtGMTOpened>July 12, 2007</dtGMTOpened>
+                <dtGMTClosed />
+                <sRequestPassword>pgupzu</sRequestPassword>
+                <sTitle>Upload documents over 1gig</sTitle>
+                <sUserId>8389332</sUserId>
+                <sFirstName>Harry</sFirstName>
+                <sLastName>Waterman</sLastName>
+                <sEmail>hw@example.com</sEmail>
+                <sPhone>845.555.1234</sPhone>
+                <iLastReplyBy>0</iLastReplyBy>
+                <fTrash>0</fTrash>
+                <dtGMTTrashed />
+                <fullname>Harry Waterman</fullname>
+                <tNote>I would like to be able to upload documents over 1 gigabyte.</tNote>
+        </request>
+        <request>
+                <xRequest>12451</xRequest>
+                <fOpenedVia>Phone</fOpenedVia>
+                <xOpenedViaId />
+                <xPersonOpenedBy>Tiffany Prince</xPersonOpenedBy>
+                <xPersonAssignedTo>Henry Yount</xPersonAssignedTo>
+                <fOpen>0</fOpen>
+                <xStatus>Problem Solved</xStatus>
+                <fUrgent>0</fUrgent>
+                <xCategory>Feature Request</xCategory>
+                <dtGMTOpened>September 19, 2007</dtGMTOpened>
+                <dtGMTClosed>September 30, 2007</dtGMTClosed>
+                <sRequestPassword>vyzfua</sRequestPassword>
+                <sTitle>Improved searching</sTitle>
+                <sUserId />
+                <sFirstName>Sarah</sFirstName>
+                <sLastName>Ryan</sLastName>
+                <sEmail />
+                <sPhone />
+                <iLastReplyBy>0</iLastReplyBy>
+                <fTrash>0</fTrash>
+                <dtGMTTrashed />
+                <fullname>Sarah Ryan</fullname>
+                <tNote>I would like to see the searching imrpoved in the upcoming release.</tNote>
+        </request>
+</filter>
+
+
+    private.filter.getColumnNames
+
+Return column names for the fields returned in filters.
+URL: 	/api/index.php?method=private.filter.getColumnNames
+HTTP Action: 	*GET*
+Parameters: 	none
+Simple Example:
+
+curl -u tim@ex.com:mypassword http://.../api/index.php?method=private.filter.getColumnNames
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<labels>
+        <iLastReplyBy>Replied To</iLastReplyBy>
+        <fOpenedVia>Contacted Via</fOpenedVia>
+        <mailbox>Mailbox</mailbox>
+        <fOpen>Open</fOpen>
+        <xRequest>ID</xRequest>
+        <sUserId>Customer ID</sUserId>
+        <fullname>Customer</fullname>
+        <sLastName>Last Name</sLastName>
+        <sEmail>Email</sEmail>
+        <sPhone>Phone</sPhone>
+        <xPersonOpenedBy>Opened By</xPersonOpenedBy>
+        <xPersonAssignedTo>Assigned To</xPersonAssignedTo>
+        <xStatus>Status</xStatus>
+        <sCategory>Category</sCategory>
+        <sTitle>Email Subject</sTitle>
+        <reqsummary>Initial Request</reqsummary>
+        <lastpublicnote>Latest Public Note</lastpublicnote>
+        <lastpublicnoteby>Latest Public Note By</lastpublicnoteby>
+        <dtGMTOpened>Opened</dtGMTOpened>
+        <dtGMTClosed>Closed</dtGMTClosed>
+        <dtGMTTrashed>Trashed On</dtGMTTrashed>
+        <lastupdate>Last Update</lastupdate>
+        <lastpubupdate>Last Public Update</lastpubupdate>
+        <lastcustupdate>Last Customer Update</lastcustupdate>
+        <ctPublicUpdates>#</ctPublicUpdates>
+        <age>Age</age>
+        <timetrack>Time</timetrack>
+</labels>
+
+
+    private.filter.getStream
+
+Return the note stream for a filter
+URL: 	/api/index.php?method=private.filter.getStream
+HTTP Action: 	*GET*
+Parameters:
+
+  * xFilter - *Required*
+  * sFilterView (stream, stream-priv, stream-cust, stream-cust-staff)
+  * fromRequestHistory (Only return notes occuring after this
+    xRequestHistory ID)
+  * limit
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.filter.getStream&xFilter=1"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<stream>
+    <history_note>
+        <xRequestHistory>184347</xRequestHistory>
+        <xRequest>46279</xRequest>
+        <xPerson>2</xPerson>
+        <dtGMTChange>1302652677</dtGMTChange>
+        <fPublic>1</fPublic>
+        <fInitial>0</fInitial>
+        <tNote>A note body....</tNote>
+        <fNoteIsHTML>1</fNoteIsHTML>
+        <fMergedFromRequest>0</fMergedFromRequest>
+    </history_note>
+</stream>
+
+
+    private.timetracker.search
+
+Return time events based on search criteria.
+URL: 	/api/index.php?method=private.timetracker.search
+HTTP Action: 	*GET*
+Parameters:
+
+  * sUserId
+  * sEmail
+  * sFirstName
+  * sLastName
+  * fOpen
+  * xStatus
+  * xMailbox
+  * fOpenedVia
+  * xCategory
+  * fUrgent
+  * xPersonAssignedTo
+  * xPersonOpenedBy
+  * Custom#
+  * start_time (30 days back by default, set to 0 for all time)
+  * end_time (right now by default)
+  * fRawValues
+  * orderBy (defaults to dtGMTDate)
+  * orderByDir (desc or asc)
+
+Simple Example:
+
+curl -u tim@ex.com:mypassword "http://.../api/index.php?method=private.timetracker.search&sUserId=76548"
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<time_events>
+    <event>
+        <xTimeId>4502</xTimeId>
+        <xRequest>12481</xRequest>
+        <xPerson>Ian Landsman</xPerson>
+        <iSeconds>5400</iSeconds>
+        <dtGMTDate>June  9, 2008</dtGMTDate>
+        <dtGMTDateAdded>June  9 2008, 11:48 AM</dtGMTDateAdded>
+        <tDescription>Fixed 3rd floor network printer</tDescription>
+        <sUserId>76548</sUserId>
+        <sFirstName>Ian</sFirstName>
+        <sLastName>Landsman</sLastName>
+        <sEmail>ian@userscape.com</sEmail>
+    </event>
+</time_events>
+
+
+    private.user.getFilters
+
+Return the authenticated users filters.
+URL: 	/api/index.php?method=private.user.getFilters
+HTTP Action: 	*GET*
+Parameters: 	none
+Simple Example:
+
+curl -u tim@ex.com:mypassword http://.../api/index.php?method=private.user.getFilters
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<filters>
+        <filter>
+                <xFilter>inbox</xFilter>
+                <sFilterName>Inbox</sFilterName>
+                <displayColumns>
+                        <takeit />
+                        <fOpenedVia>Contacted Via</fOpenedVia>
+                        <fullname>Customer</fullname>
+                        <reqsummary>Initial Request</reqsummary>
+                        <age>Age</age>
+                </displayColumns>
+                <fGlobal>0</fGlobal>
+                <sFilterFolder />
+                <count>22</count>
+                <unread />
+        </filter>
+        <filter>
+                <xFilter>myq</xFilter>
+                <sFilterName>My Queue</sFilterName>
+                <displayColumns>
+                        <isunread />
+                        <view />
+                        <fOpenedVia>Contacted Via</fOpenedVia>
+                        <fullname>Customer</fullname>
+                        <reqsummary>Initial Request</reqsummary>
+                        <age>Age</age>
+                </displayColumns>
+                <fGlobal>0</fGlobal>
+                <sFilterFolder />
+                <count>139</count>
+                <unread>18</unread>
+        </filter>
+        <filter>
+                <xFilter>9</xFilter>
+                <sFilterName>Open over 24hr</sFilterName>
+                <displayColumns>
+                        <fOpenedVia>Contacted Via</fOpenedVia>
+                        <fOpen>Open</fOpen>
+                        <fullname>Customer</fullname>
+                        <reqsummary>Initial Request</reqsummary>
+                        <dtGMTOpened>Opened</dtGMTOpened>
+                </displayColumns>
+                <fGlobal>0</fGlobal>
+                <sFilterFolder>My Filters</sFilterFolder>
+                <count>14</count>
+                <unread />
+        </filter>
+</filters>
+
+
+    private.user.preferences
+
+Return the authenticated users preferences.
+URL: 	/api/index.php?method=private.user.preferences
+HTTP Action: 	*GET*
+Parameters: 	none
+Simple Example:
+
+curl -u tim@ex.com:mypassword http://.../api/index.php?method=private.user.preferences
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<preferences>
+        <xPerson>7</xPerson>
+        <sFname>Henry</sFname>
+        <sLname>Yount</sLname>
+        <sUsername />
+        <sEmail>ian@userscape.com</sEmail>
+        <sEmail2 />
+        <sSMS />
+        <xSMSService>1</xSMSService>
+        <sPhone>x345</sPhone>
+        <tSignature>
+        Henry Yount
+        Help Desk Lead
+        </tSignature>
+        <tMobileSignature>
+        -- MOBILE --
+        Henry Yount
+        Help Desk Lead
+        </tMobileSignature>
+        <fNotifyEmail>1</fNotifyEmail>
+        <fNotifyEmail2>0</fNotifyEmail2>
+        <fNotifySMS>0</fNotifySMS>
+        <fNotifySMSUrgent>0</fNotifySMSUrgent>
+        <xPersonPhotoId>39</xPersonPhotoId>
+        <fUserType>1</fUserType>
+        <xPersonOutOfOffice>0</xPersonOutOfOffice>
+        <fNotifyNewRequest>1</fNotifyNewRequest>
+        <fDeleted>0</fDeleted>
+        <sWorkspaceDefault>myq</sWorkspaceDefault>
+        <fDefaultToPublic>0</fDefaultToPublic>
+        <fDefaultTTOpen>0</fDefaultTTOpen>
+        <fHideWysiwyg>0</fHideWysiwyg>
+        <fHideImages>0</fHideImages>
+        <iRequestHistoryLimit>10</iRequestHistoryLimit>
+        <fReturnToReq>0</fReturnToReq>
+        <sHTMLEditor>wysiwyg</sHTMLEditor>
+        <tSignature_HTML>
+        &lt;b&gt;Henry Yount&lt;/b&gt;&lt;br /&gt;
+        Help Desk Lead
+        </tSignature_HTML>
+</preferences>
+
+
+    private.util.getActiveStaff
+
+Return all currently active staff in the system and their information.
+URL: 	/api/index.php?method=private.util.getActiveStaff
+HTTP Action: 	*GET*
+Parameters: 	none
+Simple Example:
+
+curl -u tim@ex.com:mypassword http://.../api/index.php?method=private.util.getActiveStaff
+
+Sample Response:
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+<staff>
+        <person>
+            <xPerson>7</xPerson>
+            <sFname>Henry</sFname>
+            <sLname>Yount</sLname>
+            <sUsername />
+            <sEmail>henry@domain.com</sEmail>
+            <sEmail2 />
+            <sSMS />
+            <xSMSService>1</xSMSService>
+            <sPhone>x345</sPhone>
+            <tSignature>
+            Henry Yount
+            Help Desk Lead
+            </tSignature>
+            <tMobileSignature>
+            -- MOBILE --
+            Henry Yount
+            Help Desk Lead
+            </tMobileSignature>
+            <fNotifyEmail>1</fNotifyEmail>
+            <fNotifyEmail2>0</fNotifyEmail2>
+            <fNotifySMS>0</fNotifySMS>
+            <fNotifySMSUrgent>0</fNotifySMSUrgent>
+            <xPersonPhotoId>39</xPersonPhotoId>
+            <fUserType>1</fUserType>
+            <xPersonOutOfOffice>0</xPersonOutOfOffice>
+            <fNotifyNewRequest>1</fNotifyNewRequest>
+            <fDeleted>0</fDeleted>
+            <sWorkspaceDefault>myq</sWorkspaceDefault>
+            <fDefaultToPublic>0</fDefaultToPublic>
+            <fDefaultTTOpen>0</fDefaultTTOpen>
+            <fHideWysiwyg>0</fHideWysiwyg>
+            <fHideImages>0</fHideImages>
+            <iRequestHistoryLimit>10</iRequestHistoryLimit>
+            <fReturnToReq>0</fReturnToReq>
+            <sHTMLEditor>wysiwyg</sHTMLEditor>
+            <tSignature_HTML>
+            &lt;b&gt;Henry Yount&lt;/b&gt;&lt;br /&gt;
+            Help Desk Lead
+            </tSignature_HTML>
+            <fullname>Henry Yount</fullname>
+        </person>
+        <person>
+                <xPerson>1</xPerson>
+                <sFname>Tiffany</sFname>
+                <sLname>Prince</sLname>
+                <sUsername />
+                <sEmail>tiffany@domain.com</sEmail>
+                <sEmail2 />
+                <sSMS />
+                <xSMSService>1</xSMSService>
+                <sPhone>x387</sPhone>
+                <tSignature />
+                <tMobileSignature />
+                <fNotifyEmail>1</fNotifyEmail>
+                <fNotifyEmail2>0</fNotifyEmail2>
+                <fNotifySMS>0</fNotifySMS>
+                <fNotifySMSUrgent>0</fNotifySMSUrgent>
+                <xPersonPhotoId>39</xPersonPhotoId>
+                <fUserType>1</fUserType>
+                <xPersonOutOfOffice>0</xPersonOutOfOffice>
+                <fNotifyNewRequest>1</fNotifyNewRequest>
+                <fDeleted>0</fDeleted>
+                <sWorkspaceDefault>myq</sWorkspaceDefault>
+                <fDefaultToPublic>0</fDefaultToPublic>
+                <fDefaultTTOpen>0</fDefaultTTOpen>
+                <fHideWysiwyg>0</fHideWysiwyg>
+                <fHideImages>0</fHideImages>
+                <iRequestHistoryLimit>10</iRequestHistoryLimit>
+                <fReturnToReq>0</fReturnToReq>
+                <sHTMLEditor>wysiwyg</sHTMLEditor>
+                <tSignature_HTML />
+                <fullname>Tiffany Prince</fullname>
+        </person>
+</staff>
+
+
+    private.addressbook.createContact
+
+Creates a contact in the internal addressbook.
+URL: 	/api/index.php?method=private.addressbook.createContact
+HTTP Action: 	*POST*
+Parameters:
+
+  * sFirstName - *Required*
+  * sLastName - *Required*
+  * sEmail - *Required*
+  * sTitle
+  * sDescription
+  * fHighlight
+
+Simple Example:
+
+curl -X POST \  'http://.../api/index.php?method=private.addressbook.createContact' \  --header 'Authorization: Bearer 3|QeJDIPybZSjykqjzuxVJ94WqlaoVruWWbEm4ffqc' \  --header 'Content-Type: application/x-www-form-urlencoded' \  --data-urlencode 'sFirstName=John' \  --data-urlencode 'sLastName=Doe' \  --data-urlencode 'sEmail=John.Doe@example.com' \  --data-urlencode 'sTitle=Director of HR' \  --data-urlencode 'sDescription=Additional description values' \  --data-urlencode 'fHighlight=0'
+
+Sample Response:
+
+<?xml version="1.0" encoding="UTF-8"?><addressbook>    <xContact>1</xContact></addressbook>
+
+
+    private.addressbook.deletedContact
+
+Deletes a contact in the internal addressbook.
+URL: 	/api/index.php?method=private.addressbook.deleteContact
+HTTP Action: 	*POST*
+Parameters:
+
+  * xContact - *Required*
+
+Simple Example:
+
+curl -X POST \  'http://.../api/index.php?method=private.addressbook.deleteContact' \  --header 'Authorization: Bearer 3|QeJDIPybZSjykqjzuxVJ94WqlaoVruWWbEm4ffqc' \  --header 'Content-Type: application/x-www-form-urlencoded' \  --data-urlencode 'xContact=1'
+
+Sample Response:
+
+<?xml version="1.0" encoding="UTF-8"?><addressbook>    <deleted>1</deleted></addressbook>
+
+
+    private.addressbook.getContacts
+
+Retreives all contacts in the internal addressbook.
+URL: 	/api/index.php?method=private.addressbook.getContacts
+HTTP Action: 	*GET*
+Parameters: 	none
+Simple Example:
+
+curl -X POST \  'http://.../api/index.php?method=private.addressbook.getContacts' \  --header 'Authorization: Bearer 3|QeJDIPybZSjykqjzuxVJ94WqlaoVruWWbEm4ffqc' \
+
+Sample Response:
+
+<?xml version="1.0" encoding="UTF-8"?><addressbook>    <contact>        <xContact>3</xContact>        <sFirstName>Jane</sFirstName>        <sLastName>Doe</sLastName>        <sEmail>Jane.Doe@example.com</sEmail>        <sTitle>CEO</sTitle>        <sDescription>Additional description values</sDescription>        <fHighlight>1</fHighlight>    </contact>    <contact>        <xContact>2</xContact>        <sFirstName>John</sFirstName>        <sLastName>Doe</sLastName>        <sEmail>John.Doe@example.com</sEmail>        <sTitle>Director of HR</sTitle>        <sDescription>Additional description values</sDescription>        <fHighlight>0</fHighlight>    </contact></addressbook>
+
+
+  4.6. API Implementations in PHP, Cocoa, Ruby, Python, Java
+
+
+    PHP
+
+Created By: 	UserScape, Inc
+Features: 	Support for all API calls, both public and private.
+Installable via the PHP Composer package manager. PHP 5.5+ compatible.
+Documentation: 	Yes, on the Readme page linked below.
+Supported by UserScape: 	Yes
+Download: 	https://github.com/helpspot/helpspot-php
+<https://github.com/helpspot/helpspot-php>
+
+
+    Cocoa / Objective-C
+
+Created By: 	http://www.figure53.com <http://www.figure53.com/>/
+Supported by UserScape: 	No
+Download: 	https://github.com/Figure53/Helpifier
+<https://github.com/Figure53/Helpifier> (a complete desktop client)
+------------------------------------------------------------------------
+Created By: 	http://www.audiofile-engineering.com
+<http://www.audiofile-engineering.com/>/
+Supported by UserScape: 	No
+Download: 	http://www.helpspot.com/downloads/api/cocoa.zip
+<https://support.helpspot.com//downloads/api/cocoa.zip>
+
+
+    Ruby / Merb
+
+Created By: 	jbrw
+Supported by UserScape: 	No
+Download: 	http://github.com/jbrw/help_spot/tree/master
+<http://github.com/jbrw/help_spot/tree/master>
+
+
+    Python
+
+Created By: 	John Speno, Purplestork <http://www.purplestork.com/>
+Supported by UserScape: 	No
+Download: 	http://github.com/JohnSpeno/python-helpspot
+<http://github.com/JohnSpeno/python-helpspot>
+
+
+    Java
+
+Created By: 	Bakul Brahmbhatt, iland <http://www.iland.com/>
+Supported by UserScape: 	No
+Download: 	https://github.com/stinkbird/helpspot_java_sdk
+<https://github.com/stinkbird/helpspot_java_sdk>
+
+
+  4.7. Sample Implementation: NetVibes Widget
+
+This simple widget allows you to see your My Queue from the NetVibes
+homepage. It implements the private API and uses JSON to communicate
+with NetVibes. Download the file at the bottom of the page.
+
+
+
+
+    How to install the widget
+
+ 1. Make sure the private API is enabled in Admin->Settings
+ 2. Download the file and upload it to your web server in a public directory
+ 3. Go to www.netvibes.com <http://www.netvibes.com/>
+ 4. In the left navigation of NetVibes select the Widgets tab
+ 5. Select "external widgets"
+ 6. Select "UWA Module"
+ 7. In the box that opens click "edit" enter the URL to the file you
+    uploaded to your server, click OK.
+ 8. Click the "add to my page" link
+ 9. Once the widget is added, click the "edit" box and enter your
+    username, password, and URL to your HelpSpot installation.
+
+
+  5. Email Parser API
+
+
+  5.1. Email Parser: Using Email as a Service
+
+HelpSpots email parser allows you to use the built in email integration
+as a basic web service. If you need to create requests in remote systems
+you can add a few basic tags to an email you generate for accurate
+importing into HelpSpot. Every email that creates a new request is
+automatically sent through the email parser so your remote system can
+email requests with tags to the same accounts you already use for
+support. Request updates cannot use email parser tags to avoid
+unintended changes to existing requests.
+
+The following tags are available for use within email bodies. Replace
+XXXXXX with your data. All tags are automatically stripped after being
+parsed so only the email body will remain as the request.
+
+*Tag* 	*Description*
+##hs_customer_id:*XXXXXX*## 	The customers ID.
+##hs_customer_firstname:*XXXXXX*## 	The customers first name.
+##hs_customer_lastname:*XXXXXX*## 	The customers last name.
+##hs_customer_phone:*XXXXXX*## 	The customers phone number.
+##hs_customer_email:*XXXXXX*## 	The customers email address.
+
+
+    Example:
+
+Here's an example of an email generated with customer tags. This type of
+email could be generated from a remote service, desktop application, or
+intranet.
+
+Hello,
+
+I'm having trouble logging into the time reporting system. Yesterday I was
+able to enter the system via the link on the intranet, but today when I click
+that link all I see is the login screen.
+
+Tim
+
+//Note: You would programatically append the tags below//
+
+##hs_customer_id:589GK42##
+##hs_customer_firstname:Timothy##
+##hs_customer_lastname:Ryan##
+##hs_customer_phone:(845) 765-4321##
+##hs_customer_email:t.ryan@mycompany.com##
+
+There are also advanced tags
+<https://support.helpspot.com//helpdesk/index.php?pg=kb.page&id=30>
+available to submit category and custom field information.
+
+
+  5.2. Email Parser: Advanced Tags
+
+Beyond the basic customer parser tags
+<https://support.helpspot.com//helpdesk/index.php?pg=kb.page&id=25>,
+HelpSpot also supports passing in categories and custom field data via
+the email parser. In order to use these more advanced tags you'll need
+to know the category ID's and custom field ID's in your installation.
+You can find these in each ID's respective area of the admin.
+
+
+    Commands:
+
+*Tag* 	*Description*
+##forward:true## 	Treat the email as a forward. HelpSpot will attempt to
+determine the original senders email address (not the person forwarding
+the email) and use that as the HelpSpot customer information instead of
+the forwarding users information as would normally be the case. /(Note:
+this tag may also be used in the email subject line)/
+
+
+    Request ID
+
+*Tag* 	*Description*
+##hs_request_id:*XXXX*## 	Tell HelpSpot what request this message should
+be appended to. This will only work if there is no request ID found in
+the subject line of the email. This is useful for automated systems
+which may strip out request ID's, such as automated responses from eBay
+customer support. Note, this tag will work on existing requests while
+others will not.
+
+
+    Category Tag:
+
+Category ID's are displayed in the left most column on the category
+management page:
+Admin->Categories
+
+*Tag* 	*Description*
+##hs_category:*XX*## 	The category ID should be passed in this tag. It
+must be numeric and it must be a valid active category.
+
+
+    Assignment Tag:
+
+Staff ID's are displayed in the left most column on the staff management
+page:
+Admin->Staff
+
+*Tag* 	*Description*
+##hs_assigned_to:*XX*## 	The staff member ID should be passed in this
+tag. It must be numeric and it must be a valid active staff member.
+
+
+    Custom Field Tags:
+
+Custom field ID's are displayed in the left most column on the custom
+field page:
+Admin->Tools->Custom Request Fields
+
+*Tag* 	*Description*
+##hs_custom*X*:*XXXXXX*## 	In the left part of the tag you must place
+the custom field ID for the information you're passing. In the right
+part of the tag after the colon pass the data. Data must be appropriate
+for the field type as specified below.
+
+Table of appropriate values for each type of custom field. Note that
+improperly passed data or data of the wrong type will default the custom
+field to empty.
+
+*Custom Field Type* 	*Value Accepted*
+Predefined List 	Any one of the values in the list. The value must be
+exactly as it appears on the drop down including spacing.
+Text Field 	Up to 255 characters of data. Should not include line breaks.
+Large Text Field 	Large blocks of text data. This may include line breaks.
+Checkbox 	The number 1 if the checkbox should be checked, a 0 if not
+checked.
+Numeric Field 	An integer value.
+
+
+    Complete Example:
+
+Here's an example of an email generated with customer tags as well as
+category and custom field tags. This type of email could be generated
+from a remote service, desktop application, or intranet.
+
+Hello,
+
+I'm having trouble logging into the time reporting system. Yesterday I was
+able to enter the system via the link on the intranet, but today when I click
+that link all I see is the login screen.
+
+Tim
+
+//Note: You would programatically append the tags below//
+
+
+##hs_category:6##
+##hs_assigned_to:4##
+
+##hs_custom1:Time Reporting##
+##hs_custom2:Accounting Department##
+##hs_custom3:1##
+
+##hs_customer_id:589GK42##
+##hs_customer_firstname:Timothy##
+##hs_customer_lastname:Ryan##
+##hs_customer_phone:(845) 765-4321##
+##hs_customer_email:t.ryan@mycompany.com##
+
+
+  6. Webhooks
+
+
+  6.1. Webhooks Overview
+
+Webhooks help connect a HelpSpot installation to other systems. While
+these connections were always possible using the HelpSpot API, webhooks
+make it easier to do and allow for the connections to occur in
+real-time. Webhooks can be called when a set of conditions are met in a
+trigger, automation rule or a mail rule. Webhooks appear as an action in
+the interface for setting up each of these types of automations.
+
+Webhook actions only require one parameter, the url of the receiving web
+hook script. HelpSpot sends all the information it has about the request
+to the URL you specify, including the customer, the note body, custom
+fields, and more. Webhook execution is logged in the request history, so
+tracking calls to a webhook is easy.
+
+You can find an example implementation of using web hooks to send
+notifications to Slack on GitHub
+<https://github.com/HelpSpot/Helpspot-Webhook-to-Slack-Incoming-Webhook>.
+
+
+  7. Zapier Integration
+
+
+  7.1. Getting Started With The HelpSpot - Zapier Integration
+
+Helpspot's integration with Zapier allows you to connect your HelpSpot
+instance with hundreds of other applications. Actions can be triggered
+from HelpSpot and requests can be created and updated based on other
+Zapier apps. All of this can be done without writing a single line of
+code. There are a few requirements for getting started with implementing
+a Helpspot - Zapier integration.
+
+  * A HelpSpot user with administrator privileges
+  * A Zapier account
+  * A HelpSpot installation that has been updated to at least version 4
+    of HelpSpot
+  * Your HelpSpot instance must have the private API enabled
+  * Your HelpSpot instance must have a publicly accessible URL
+
+
+    Setting Up Your HelpSpot Zapier App
+
+The first time you create a HelpSpot integration with Zapier you will
+need to take a few steps to get things up and running. You can add the
+HelpSpot app here (https://zapier.com/apps/helpspot/integrations
+<https://zapier.com/apps/helpspot/integrations>﻿) After the initial
+configuration is complete you can continue to create more Zaps based on
+this initial setup.
+
+ 1. Login to Zapier
+ 2. Choose to create a new zap
+ 3. Search for "HelpSpot" and select the application
+ 4. Select a trigger ("New Request", for example)
+ 5. Choose Connect a New Account
+ 6. Enter your *HelpSpot *username and password in the prompts provided
+ 7. In the URL field enter the base HelpSpot Url. For example, if your
+    helpspot admin url is
+    /https://helpspot.mycompany.com/helpspot/admin.php/ you will simply
+    want to enter /https://helpspot.mycompany.com/helpspot//.
+
+After saving this step, HelpSpot is now connected to Zapier. You can add
+HelpSpot actions and triggers to any of your Zaps. In addition, you can
+choose to continue to build out the zap that you started during this
+process
+
+
+  7.2. Using HelpSpot Webhooks With Zapier
+
+The Zapier webhook catcher can be used to catch webhooks triggered from
+HelpSpot. This tutorial video walks through the basic setup of this feature.
+
+
+  7.3. Using Zapier to Create HelpSpot Tickets Directly from Slack
+
+If you're a HelpSpot user who wants to streamline the ticket creation
+process, Zapier can help you create HelpSpot tickets directly from
+Slack. Here's how:
+
+
+    Get an API key from HelpSpot
+
+To start, you need to get an API key from HelpSpot. To do this, go to
+your user profile, scroll down to api authentication tokens, enter a
+name for your API token, then click ‘Issue New Token’. Make sure to copy
+your API token to a safe place!
+
+
+    Create a Slack App
+
+Next, go to api.slack.com/apps
+<https://support.helpspot.com/api.slack.com/apps>, click Create an App,
+enter a name for your app, and select the correct Slack account where
+you want to use the new Slack bot.
+
+
+    Add Slash Commands to Your App
+
+Slack will then show some options to add features to your app.
+
+You can add bot users, interactive messages, and more—but each of those
+requires coding. Instead, select the Slash Commands button.
+
+Click *Create New Command*. Add a command with a slash in front of it -
+in this case, you might want to call it /helpspot or /ticket or /help.
+
+You’ll also need to fill in the Request URL, which we’re going to grab
+from Zapier.
+
+
+    Create a Zap in Zapier
+
+Head over to Zapier and make a new Zap using Zapier’s Webhooks app, and
+for Event*choose ‘Catch Hook’. *
+
+*Click Continue*, and Zapier will ask you if you want to Pick off a
+Child Key - just ignore this field and *select ‘Continue’.*
+
+Zapier will give you a webhook URL, which you’re going want to copy.
+
+
+    Add the Webhook URL to Your Slack App
+
+Head back over to the Slack App setup and paste your webhook URL.
+
+Make sure you save your settings, then in Slack do a test of your new
+Slash command - if you chose /ticket, you’d write something like /ticket
+I need help with my printer. Nothing will happen once you do that, but
+that’s okay - we’ll deal with that later.
+
+
+    Add Actions to Your Zap
+
+Head back to Zapier and in order to create a ticket, add two actions to
+this Zap in Zapier.
+
+First, add the Slack Action and under Event *select ‘Find User by
+Username’. *This will allow us to query the name & email address of the
+user who’s submitting the ticket in HelpSpot.
+
+Then add a HelpSpot Action and under Event *select ‘Create a New
+Request’.* If this is your first time setting up HelpSpot in Zapier,
+you’ll need the URL of your workspace AND the API token we created
+earlier in HelpSpot.
+
+Copy those two pieces of information over and you should be able to
+connect HelpSpot & Zapier.
+
+
+    Set Up Action
+
+Under Set Up Action, look under Step 1 (Catch Hook in Webhooks) and look
+for the Text from the original webhook. It should say ‘I need help with
+my printer’, if you use the example we gave earlier.
+
+Then scroll down and under First Name, Last Name, and Email fields, look
+for that information in what’s returned by Step 2 of the Zap.
+
+Once that’s done,*hit Continue*, and then go ahead and test your action.
+
+
+    Wrapping Up
+
+Log into HelpSpot, and if all is well, you should see a new ticket in
+HelpSpot that has the correct first name, last name, email, and whatever
+you typed in Slack to create the ticket.
+
+Once everything is good to go, publish your Zap and you should now be
+able to
+
+
+  Appendix
+
+
+  1. API Field Definitions
+
+accesskey 	The request ID and random characters string that together
+allow access to a request from the portal. The access key is also used
+in the API to make request lookups via the public interface.
+acting_person_xperson 	The ID of the person logged in and acting within
+HelpSpot causing the action to occur.
+acting_person_fusertype 	The user type of the person logged in and
+acting within HelpSpot causing the action to occur.
+
+  * 1 - Admin
+  * 2 - Help Desk Staff
+  * 3 - Level 2
+  * 4 - Guest
+
+acting_person_fname 	The first name of the person logged in and acting
+within HelpSpot causing the action to occur.
+acting_person_lname 	The last name of the person logged in and acting
+within HelpSpot causing the action to occur.
+acting_person_email 	The email of the person logged in and acting within
+HelpSpot causing the action to occur.
+afterDate 	A unix timestamp (timezone adjusted) of the date/time to
+search after based on open date.
+anyall 	When searching this specifies if you're doing an AND or an OR
+type search. The default is "all".
+assigned_person_fname 	The assigned users first name
+assigned_person_lname 	The assigned users last name
+assigned_person_email 	The assigned users email
+beforeDate 	A unix timestamp (timezone adjusted) of the date/time to
+search before based on open date.
+closedBeforeDate 	A unix timestamp (timezone adjusted) of the date/time
+to search before based on closing date.
+closedAfterDate 	A unix timestamp (timezone adjusted) of the date/time
+to search after based on closing date.
+Custom# 	A custom field value. See the custom field section
+<#customfields> for more details.
+dtGMTDateAdded 	A unix timestamp (timezone adjusted) of the date/time
+the event was added. Defaults to the current date/time.
+email_from 	The xMailbox ID of the mailbox to send emails from for this
+request or request update.
+email_cc 	Comma separated list of emails to CC on a request note. EX:
+tim@domain.com,bill@example.com
+email_bcc 	Comma separated list of emails to BCC on a request note. EX:
+tim@domain.com,bill@example.com
+email_to 	External notes only. Comma separated list of emails to send
+the note to. EX: tim@domain.com,bill@example.com
+email_staff 	Comma separated list of staff ID's (this is the staffers
+xPerson value) to notify on the note. EX 4,8,14
+fBillable 	1 if the time event should be tracked as billable, 0 otherwise.
+fEmailUpdate 	1 if the forum poster is subscribing via email to the
+topic, 0 otherwise.
+fOpen 	1 if the request is open, 0 otherwise.
+File#_sFilename 	A file name for the uploading file. See the file upload
+section <#fileuploads> for more details.
+File#_sFileMimeType 	The mime type of the uploading file. EX: text/text
+or text/html. See the file upload section <#fileuploads> for more details.
+File#_bFileBody 	The base 64 encoded body of the uploading file. See the
+file upload section <#fileuploads> for more details.
+fNoteIsHTML 	If the note contains HTML or plain text. Defaults to the
+on/off values of Admin->Settings->HTML Emails.
+
+  * 0 - Plain text
+  * 1 - HTML
+
+fNoteType 	The type of note being posted via the API.
+
+  * 0 - A private note. Will not be emailed to customer or available via
+    the portal.
+  * 1 - A public note. Emailed to customer, available in portal.
+  * 2 - An external note. Emailed to specified email addresses. Not
+    available to customer.
+
+fOpenedVia 	The ID of the method in which the request was opened. Valid
+values are:
+
+  * 1 - Email
+  * 2 - Phone
+  * 3 - Walk In
+  * 4 - Mail
+  * 5 - Other
+  * 6 - Web Service
+  * 7 - Web Form
+  * 8 - Forum
+  * 9 - Instant Messenger
+  * 10 - Fax
+  * 11 - Voicemail
+  * 12 - Staff Initiated
+  * 13 - Tab Widget
+
+fRawValues 	This is a special flag. By default in the API most method
+calls will automatically translate dates, xPerson values, xCategory
+values, xStatus values and other reference ID's into their true values.
+This greatly reduces the number API calls which are required to display
+the results of a method. However, in some circumstances you may actual
+want the raw reference numbers. In this case you should set this value
+to 1 and the raw data will be returned.
+fTrash 	1 if the request is in the trash, 0 otherwise.
+fUrgent 	1 if the request is urgent, 0 otherwise.
+iDay 	The day of the month a time event occured. (1-31)
+iMonth 	The month of the year a time event occured. (1-12)
+iYear 	The year a time event occured.
+length 	Number of results to return in a result set.
+q 	A search query string.
+relativedate 	Searches for requests in the time period relative to the
+current time based on open date.
+
+  * today - Today's date
+  * yesterday - Yesterday's date
+  * past_7 - The past 7 days
+  * past_14 - The past 14 days
+  * past_30 - The past 30 days
+  * past_90 - The past 90 days
+  * past_365 - The past 365 days
+  * this_week - The current week
+  * this_month - The current month
+  * this_year - The current year
+  * last_week - The previous week
+  * last_month - The previous month
+  * last_year - The previous year
+
+reportingTags 	A comma separated list of reporting tag ID's
+(xReportingTag). Normally these are retrieved with the
+private.request.getCategories API call. Each categories reporting tags
+are included along with their ID's.
+sBrowser 	The browser of the forum poster.
+sEmail 	The customers email address.
+sFilterView 	The type of notes to return for a filter stream.
+
+  * *stream* - Staff created public notes to customers
+  * *stream-priv* - Staff created public and private notes
+  * *stream-cust* - Customer notes
+  * *stream-cust-staff* - Staff and customer public notes
+
+sFirstName 	The customers first name.
+sIP 	The IP of the forum poster.
+sLastName 	The customers last name.
+sName 	The name provided by a forum poster.
+sOS 	The operating system of the forum poster.
+sPhone 	The customers phone number.
+sSearch 	When searching a request this is a full text search string that
+will be used to search against all the request history notes.
+start 	Result sets should start from this row, defaults to 0. Use this
+to paginate results in methods which support it.
+sTitle 	In a request this is the original email subject. If submitting a
+request update this field holds the value of the subject line you intend
+to use in the email. If not provided the standard default will be used.
+sTopic 	The name of a forum topic.
+sURL 	The URL provided by a forum poster.
+sUserId 	The customers ID. This is not a HelpSpot ID, but rather is your
+companies ID for the customer. The value is a string and may contain
+letters along with numbers.
+tDescription 	The description of a time event.
+tNote 	The text of a request history item. Usually the body of an email
+or a post from the web form. You'll usually need to check the
+fNoteIsHTML value to see if the note is HTML or plain text.
+tPost 	The text of a forum post.
+tTime 	The lenght of time to be registered as a time event. 2 formats
+are supported. Hours and minutes (hh:mm, ex 2 hours 15 minutes would be
+2:15) and decimal hours (2.5 hours).
+xBook 	The ID of a knowledge book.
+xCategory 	The ID of a category.
+xFilter 	The ID of a users filter.
+xForumId 	The ID of a forum.
+xPage 	The ID of a knowledge book page.
+xPerson 	The ID of a staff member.
+xPersonAssignedTo 	The ID of the staff member the request is assigned to.
+xPersonOpenedBy 	The ID of the staff member who opened the request. Use
+0 to set the customer as the person opening the request.
+xPortal 	The ID of a secondary portal to associate the request with
+xRequest 	The ID of a request.
+xStatus 	The ID of a status.
+xTimeId 	The ID of a time event.
+xTopicId 	The ID of a forum topic.
+
+
+
+    Custom Fields
+
+Throughout the system custom fields are referenced by Custom# where the
+# is the ID of the custom field. So to reference custom field 5 you
+would use Custom5. If you do reference a custom field when creating or
+updating a request and do not provide a value you will receive an error:
+"Required parameter Custom# not supplied".
+
+When setting custom field values through the API some field types have
+special requirements. A description of these fields is below.
+
+Predefined List 	Values you set should be a valid part of the list.
+Drill Down List 	Drill down values must be returned in a special
+serialized format. Each level of the drill down is separate by #-#. So
+for a 2 level drill down the value to set would look like this:
+Boston#-#8st
+Date Fields 	Should be a Unix Timestamp of the date.
+Date/Time Fields 	Should be a Unix Timestamp of the date/time.
+Regular Expression Field 	Your API client should check for regex
+correctness. The regex is stored and checked in Javascript.
+AJAX Selection Field 	Your API client should check for a valid value
+based on what your ajax field would normally supply.
+Checkbox 	1 for checked, 0 for not.
+
+
+    Skipping Custom Field Checks
+
+When creating a request or updating it using the private api you may
+want to skip the custom field requirement checks for certain operations.
+This is possible by setting the api variable skipCustomChecks to 1.
+
+
+    File Uploads
+
+The methods which accept file uploads all work in the same fashion. Up
+to 9 files may be uploaded at a time with each request. Each file should
+be numbered 1-9 and the fields created with appropriate names. For
+example these would be the valid field names for 2 files being uploaded:
+
+File1_sFilename
+File1_sFileMimeType
+File1_bFileBody
+
+File2_sFilename
+File2_sFileMimeType
+File2_bFileBody
+
+Also note that the bFileBody value should be base64 encoded and that
+sFileMimeType should be a valid mime type so that the file is served
+correctly.
+
+Search
+
+
+    Footer
+
+Company name
+
+Just Enough Help Desk Software
+
+Twitter
+
+<https://twitter.com/helpspot> GitHub
+
+<https://github.com/helpspot>
+
+
+      Product
+
+  * Help Desk Software <https://www.helpspot.com/help-desk-software>
+  * Features <https://www.helpspot.com/shared-inbox>
+  * Pricing <https://www.helpspot.com/pricing>
+  * Requirements <https://www.helpspot.com/requirements>
+  * Free Help Desk <https://www.helpspot.com/free-help-desk-software>
+
+
+      Sales
+
+  * Contact Us <https://www.helpspot.com/contact>
+  * Success Stories <https://www.helpspot.com/success-stories>
+  * Use Cases <https://www.helpspot.com/customer-service-software>
+  * Services <https://www.helpspot.com/services>
+  * What's New <https://www.helpspot.com/new>
+
+
+      Support
+
+  * Open a Ticket <https://support.helpspot.com/index.php?pg=request>
+  * Release Notes <https://www.helpspot.com/blog/releases>
+  * Documentation <https://support.helpspot.com/>
+  * Video Training <https://www.youtube.com/c/Helpspot>
+  * Community Forum <https://discuss.helpspot.com/>
+  * Blog <https://www.helpspot.com/blog>
+
+
+      Everything Else
+
+  * Privacy <http://userscape.com/privacy-policy.php>
+  * Terms <https://www.helpspot.com/license>
+  * Affiliate <https://www.helpspot.com/affiliate>
+  * Status Page <https://helpspot.statuspage.io/>
+  * Your Account <https://store.helpspot.com/>
+
+© 2004 — 2023 UserScape, Inc. All rights reserved.
