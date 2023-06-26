@@ -8,7 +8,7 @@
     [cmdletbinding(HelpUri = 'https://support.helpspot.com/index.php?pg=kb.page&id=164')]
     param(
         [Parameter(Mandatory)]
-        [ValidateScript({ $null -ne $script:apidefinition[$_] })]
+        [ValidateScript({ $null -ne (Get-HelpspotApiDef -ApiDefinition $_) })]
         [String]
         $ApiEndpoint,
         [Parameter()]
@@ -25,15 +25,18 @@
         $headers = @{
             Authorization = "Bearer $apikey"
         }
-        $config = $script:apidefinition[$ApiEndpoint].clone()
+        $config = Get-HelpspotApiDef -Apidefinition $ApiEndpoint
         if ($Params) {
             $ExtraParamString = [System.Web.HttpUtility]::ParseQueryString('')
             foreach ($object in $Params.GetEnumerator()) {
+                # check if valid parameter for endpoint
                 if ($config.param[$object.Name]) {
+                    # add it to string
                     $ExtraParamString.Add("$($object.Name)", "$($object.Value)")
+                    # remove from hashtable for future check if all required params are given.
                     $config.param.remove($object.Name)
                 } else {
-                    Write-Warning "$($object.Name) is not a valid parameter for this endpoint, only: `n$($script:apidefinition[$ApiEndpoint].param.keys -join ', ')"
+                    Write-Warning "$($object.Name) is not a valid parameter for this endpoint only: `n$((Get-HelpspotApiDef -Apidefinition $ApiEndpoint).param.keys -join ', ')"
                 }
             }
             $urlBuilder = "$($baseUrl)/api/index.php?method=$($ApiEndpoint)&$($ExtraParamString.Tostring())&output=json"
@@ -44,6 +47,7 @@
     process {
         Write-Debug "Method: $($config.method) Url: $urlBuilder"
         try {
+            # check if all required params are removed from $config
             $RequiredParameters = $config.param.GetEnumerator() | Where-Object { $_.Value.Required -eq $true }
             if (-Not $RequiredParameters) {
                 $response = Invoke-RestMethod -Headers $headers -Uri $urlBuilder -Method $config.method
@@ -55,8 +59,5 @@
         } catch {
             throw $_
         }
-    }
-    clean {
-        if ($config) { Remove-Variable config }
     }
 }
