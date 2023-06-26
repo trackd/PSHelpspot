@@ -3,15 +3,17 @@
     param (
         [String]
         $ApiEndpoint
+        # [String]
+        # $Search
     )
     process {
         if ($ApiEndpoint) {
-            if ($APIEndpoint -match 'private') {
+            if ($APIEndpoint -match 'Private') {
                 $helpurl = "https://support.helpspot.com/index.php?pg=kb.page&id=164#$($APIEndpoint)"
             } else {
                 $helpurl = "https://support.helpspot.com/index.php?pg=kb.page&id=163#$($ApiEndpoint)"
             }
-            $config = $script:apidefinition[$ApiEndpoint]
+            $config = Get-HelpspotApiDef -ApiDefinition $ApiEndpoint
             $helper = [PSCustomObject]@{
                 APIEndpoint = $config.endpoint
                 Method      = $config.method
